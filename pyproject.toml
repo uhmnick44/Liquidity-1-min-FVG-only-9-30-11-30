@@ -1,0 +1,13 @@
+[project]
+name = "liqengine"
+version = "0.1.0"
+description = "Deterministic mathematical liquidity engine (spec v1.1)"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+parquet = ["pyarrow"]
+test = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

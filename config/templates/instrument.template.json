@@ -1,0 +1,15 @@
+{
+  "_comment": "TEMPLATE ONLY. Every value marked TO_VERIFY must be filled from an official source (CME contract specs / Databento definition schema) and recorded under 'sources'. Leave verified=false until a human has checked it; the driver refuses unverified configs.",
+  "root": "MNQ",
+  "has_expirations": true,
+  "tick_size": "TO_VERIFY",
+  "exchange_calendar_id": "TO_VERIFY",
+  "reference_calendar_id": "TO_VERIFY",
+  "nominal_pre_window_end": null,
+  "verified": false,
+  "verified_by": null,
+  "sources": {"tick_size": "TO_VERIFY", "expiration_cycle": "TO_VERIFY", "contracts": "Databento definition schema (expiration, min_price_increment, instrument_class)"},
+  "contracts": [
+    {"symbol": "TO_VERIFY", "instrument_id": 0, "expiration": "TO_VERIFY (UTC ISO, last eligible trade time)", "activation": "TO_VERIFY", "tick_size": "TO_VERIFY", "in_expiration_cycle": true, "is_outright": true}
+  ]
+}

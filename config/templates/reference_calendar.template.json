@@ -1,0 +1,12 @@
+{
+  "_comment": "TEMPLATE ONLY. Reference (cash) market calendar, separate from the exchange calendar. Local wall-clock times in 'tz'. Closed days: {\"date\": \"YYYY-MM-DD\", \"closed\": true}. Verify against official reference-market holiday/early-close notices.",
+  "calendar_id": "TO_VERIFY",
+  "version": "TO_VERIFY",
+  "verified": false,
+  "verified_by": null,
+  "source": "TO_VERIFY",
+  "tz": "America/New_York",
+  "days": [
+    {"date": "YYYY-MM-DD", "open": "09:30", "close": "16:00"}
+  ]
+}

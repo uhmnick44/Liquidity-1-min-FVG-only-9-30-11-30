@@ -1,0 +1,11 @@
+{
+  "_comment": "TEMPLATE ONLY. One entry per exchange trade date, with every scheduled trading segment as [open, close) in UTC ISO. Include holiday halts as separate segments. Verify against official exchange notices before setting verified=true.",
+  "calendar_id": "TO_VERIFY",
+  "version": "TO_VERIFY",
+  "verified": false,
+  "verified_by": null,
+  "source": "TO_VERIFY",
+  "sessions": [
+    {"session_id": "YYYY-MM-DD", "segments": [["YYYY-MM-DDTHH:MM:00Z", "YYYY-MM-DDTHH:MM:00Z"]]}
+  ]
+}

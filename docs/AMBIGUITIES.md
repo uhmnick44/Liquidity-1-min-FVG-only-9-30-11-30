@@ -1,9 +1,7 @@
 # Liquidity Engine — Ambiguity Register (spec v1.0)
 
-Status: **OPEN. No engine code has been written.** Each item needs an explicit
-decision (accept the recommendation, pick another option, or redefine) before
-implementation. Recommendations are proposals, not rules. Decisions get recorded
-here with a date and become part of spec v1.1.
+Status: **SUPERSEDED** by the approved v1.1 amendment, consolidated in [`SPEC_v1.1.md`](SPEC_v1.1.md).
+Remaining open questions are tracked there as N1–N21. Kept for history.
 
 Legend — **[BLOCKING]**: the engine can't be built correctly without it.
 **[DEFAULTABLE]**: a recommendation exists that adds no new trading logic.

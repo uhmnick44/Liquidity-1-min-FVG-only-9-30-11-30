@@ -6,7 +6,8 @@ Date: 2026-11-24. Environment: Python 3.13.18, pytest 9.1.1, pyarrow 26.0.1, Lin
 
 ```
 $ python3 -m pytest tests -q
-98 passed in 0.50s
+105 passed in 1.56s   (incl. DBN round-trip on a real MNQH3 file via LIQ_DBN_FIXTURE;
+                       without the fixture: 104 passed, 1 skipped)
 ```
 
 All tests use **synthetic** data. No real market data has been processed (see Limitations).
@@ -44,7 +45,7 @@ All tests use **synthetic** data. No real market data has been processed (see Li
 
 ## Limitations (not validated)
 
-1. **No historical dataset has been audited or processed.** None is available in this environment. Step 7 (dataset audit) is still to do: the tool is ready, but it needs your Databento files, or an API key so the data can be pulled here.
+1. **Dataset audited (step 7), but the engine has not been run on it.** See DATA_AUDIT_REPORT.md. An engine run is blocked by the missing contract definitions, unverified calendars and open N-items.
 2. **No verified calendars exist yet.** The driver refuses to run on real data until verified CME and NYSE calendar files are supplied (I9).
 3. **MNQ contract metadata is unverified.** CME's site blocks automated access, so it needs manual verification or Databento definitions.
 4. **Open items N1–N21** in `SPEC_v1.1.md` are unresolved. A real run will stop at the first one it hits. In particular, without an N12 decision every vendor-omitted minute is `UNCERTAIN`, which quarantines all active liquidity.

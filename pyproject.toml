@@ -7,6 +7,8 @@ dependencies = []
 
 [project.optional-dependencies]
 parquet = ["pyarrow"]
+dbn = ["databento-dbn", "zstandard"]
+audit = ["pandas_market_calendars"]
 test = ["pytest"]
 
 [tool.pytest.ini_options]

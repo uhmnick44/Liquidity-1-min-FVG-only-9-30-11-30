@@ -28,7 +28,7 @@ class DataIntegrityError(ValueError):
     pass
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Bar:
     minute: int       # open time (UTC minute); observable at minute + 1
     open: int         # ticks on the contract's grid

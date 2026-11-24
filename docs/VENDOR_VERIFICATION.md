@@ -27,3 +27,7 @@ Retrieved 2026-11-24 from official Databento documentation (HTTP 200). Quotes ar
 - **CME MNQ contract specifications** (tick size, multiplier, cycle, hours, last trade rule): cmegroup.com refused automated requests (HTTP 403 from the site). Must be checked by a human; per-contract tick size should be taken from Databento definitions and cross-checked.
 - **CME/NYSE holiday and early-close schedules**: not yet assembled. Calendars must be built from official notices and marked `verified: true` by a human. www.nyse.com is reachable from this environment if you want me to draft the reference calendar from it.
 - **Vendor documentation is not proof of a dataset's integrity** (I8): the audit must be run on the actual files.
+
+## Third-party calendar candidate (pandas_market_calendars 5.6.1, CME_Equity) — contradicted by data
+Audit 2026-11-24: on 9 early-close days the front contract prints through 13:14 ET, past the library's 13:00 ET close,
+and on 2025-01-08/09 there is trading the library treats as closed. Not usable as a verified calendar.

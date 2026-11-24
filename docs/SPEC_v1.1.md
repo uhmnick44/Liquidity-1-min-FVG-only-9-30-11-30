@@ -141,6 +141,9 @@ The setup is active from q+1 until the earliest of invalidation-observable, roll
 
 ## Open items requiring authorization
 
+> The complete, current register (including N23–N31 and data gaps) is [`OPEN_ITEMS.md`](OPEN_ITEMS.md).
+
+
 Each item is an explicit `PolicyConfig` field defaulting to `None`. The engine raises when it reaches one and does not guess. Tests exercise every option.
 
 | ID | Question | Options in code |

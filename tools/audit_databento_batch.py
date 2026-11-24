@@ -217,8 +217,14 @@ def main(out_path, *dirs):
                 outside[sym][lt.date().isoformat()] += 1
     report["bars_outside_candidate_schedule"] = {
         s: {"total": sum(c.values()), "by_local_date": dict(sorted(c.items()))} for s, c in outside.items()}
-    report["condition"] = {"degraded_days": sorted(d for d, c in conditions.items() if c != "available"),
-                           "days": len(conditions)}
+    degraded = sorted(d for d, c in conditions.items() if c != "available")
+    # N28 (approved): flag every session that touches a degraded UTC date (audit metadata only)
+    touch = {}
+    for dd in degraded:
+        day0 = dt_to_minute(datetime.fromisoformat(dd).replace(tzinfo=timezone.utc))
+        touch[dd] = [s.session_id for s in cal.sessions if s.start < day0 + 1440 and s.end > day0]
+    report["condition"] = {"degraded_days": degraded, "days": len(conditions),
+                           "sessions_touching_degraded_days": touch}
     Path(out_path).write_text(json.dumps(report, indent=1, sort_keys=True, default=str))
     print(json.dumps({k: report[k] for k in ("candidate_calendar", "front_month_gap_analysis", "condition")}, indent=1))
 

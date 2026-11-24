@@ -6,7 +6,8 @@ Date: 2026-11-24. Environment: Python 3.13.18, pytest 9.1.1, pyarrow 26.0.1, Lin
 
 ```
 $ python3 -m pytest tests -q
-105 passed in 1.56s   (incl. DBN round-trip on a real MNQH3 file via LIQ_DBN_FIXTURE;
+116 tests: 115 passed, 1 skipped (spec v1.2 run; the skip is the DBN round-trip, which passes when LIQ_DBN_FIXTURE points to a real file)
+$ (earlier v1.1 run) 105 passed in 1.56s   (incl. DBN round-trip on a real MNQH3 file via LIQ_DBN_FIXTURE;
                        without the fixture: 104 passed, 1 skipped)
 ```
 
@@ -41,6 +42,7 @@ All tests use **synthetic** data. No real market data has been processed (see Li
 | Determinism (byte-identical outputs) | `test_determinism_identical_inputs_identical_outputs` |
 | Data: fixed-point/pretty prices, ISO timestamps, duplicates, off-grid, misaligned ts, rtype, OHLC, out-of-order, unknown ids, spreads, Parquet | 9 tests |
 | Minute classification + audit counts, run lengths, bars outside schedule | `test_minute_classification_and_audit` |
+| v1.2: notice-verified halt as closure, halt counter reset, halt/bar conflict, N9 resume with quarantine+freeze, one-sided venue high, mid-minute attribution, cleared-volume mapping/causality/revisions/deletes/ts_ref mismatch, session high/low → coarse bars, APPROVED_V12 complete | `tests/test_v12.py` (11) |
 | Every unset policy raises instead of guessing | N3, N4, N5, N6, N7, N11 guard tests |
 
 ## Limitations (not validated)

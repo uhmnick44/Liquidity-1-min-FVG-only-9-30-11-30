@@ -102,3 +102,17 @@ class PolicyConfig:
             v = getattr(self, f.name)
             out[f.name] = v.value if isinstance(v, Enum) else v
         return out
+
+
+# Spec v1.2: all open items resolved with the recommendations in docs/OPEN_ITEMS.md,
+# approved by the trader on 2026-11-24. Use this for production runs.
+APPROVED_V12 = PolicyConfig(
+    incomplete_window_liquidity=IncompleteWindowLiquidity.QUARANTINE,      # N3
+    counter_across_closure=CounterAcrossClosure.RESET,                    # N4
+    counter_across_zero_trade=CounterAcrossZeroTrade.RESET,               # N5
+    pre_window_when_reference_closed=PreWindowWhenReferenceClosed.DO_NOT_GENERATE,  # N6
+    exchange_session_unit=ExchangeSessionUnit.TRADE_DATE,                 # N7
+    initial_contract=InitialContract.HIGHEST_VERIFIED_VOLUME,             # N8
+    quarantine_collision=QuarantineCollision.SEPARATE,                    # N10
+    dual_sided_includes_quarantined=True,                                 # N11
+)

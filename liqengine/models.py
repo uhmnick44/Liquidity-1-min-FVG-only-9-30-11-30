@@ -34,6 +34,7 @@ class RejectReason(Enum):
     NO_CONFIRMATION_WITHIN_WINDOW = "NO_CONFIRMATION_WITHIN_WINDOW"
     DUAL_SIDED = "DUAL_SIDED"
     SCHEDULED_CLOSURE = "SCHEDULED_CLOSURE"               # A5
+    UNSCHEDULED_HALT = "UNSCHEDULED_HALT"                 # N22(b), notice-verified halts only
     DATA_GAP = "DATA_GAP"                                 # §13
     PENETRATED_DURING_MISSING_DATA = "PENETRATED_DURING_MISSING_DATA"  # A4 (coarse evidence)
     PROCESSING_SUSPENDED = "PROCESSING_SUSPENDED"          # I2.4
@@ -212,12 +213,25 @@ class SweepEvent:
 
 @dataclass(frozen=True)
 class CoarseBar:
-    """Verified coarser-resolution observation (A4 step 2). Prices are actual
-    prints on `contract`. Usable only from `available_minute` onward."""
+    """Verified coarser-resolution observation (A4 step 2, N18). Prices are
+    actual prints on `contract`. Usable only from `available_minute` onward.
+
+    high/low may be None when the source states only one side (e.g. a venue
+    session-high statistic). [start_minute, end_minute) is the span of minutes
+    the extreme is guaranteed to bound. attribution_end_minute (>= end_minute)
+    is the span within which the extreme is guaranteed to have printed. A
+    running statistic stamped mid-minute m bounds minutes < m and printed by
+    minute m, so end = m and attribution_end = m + 1.
+    """
     contract: str
     start_minute: int
     end_minute: int      # exclusive
-    high: Decimal
-    low: Decimal
+    high: Decimal | None
+    low: Decimal | None
     available_minute: int
     source: str
+    attribution_end_minute: int | None = None
+
+    @property
+    def attribution_end(self) -> int:
+        return self.end_minute if self.attribution_end_minute is None else self.attribution_end_minute

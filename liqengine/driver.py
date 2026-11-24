@@ -20,6 +20,27 @@ class UnverifiedConfigurationError(RuntimeError):
     pass
 
 
+def _select_by_volume(instrument, volumes_for, session, decided, selector):
+    """N9(b): after a suspension, pick the highest verified completed-session
+    volume among eligible successors (I3: outright, in cycle, later expiry than
+    every replaced/current contract, listed, unexpired). Tie -> earliest expiry
+    (I10). Returns None unless every candidate's volume is verified."""
+    floor = max(instrument.contract(c).expiration for c in selector.replaced + [selector.current])
+    cands = [c for c in instrument.contracts
+             if c.is_outright and c.in_expiration_cycle and c.expiration > floor and c.expiration > decided
+             and (c.activation is None or c.activation <= session.start)
+             and c.symbol not in selector.replaced and c.symbol != selector.current]
+    if not cands:
+        return None
+    vols = volumes_for(session, [c.symbol for c in cands], decided)
+    if not all(vols.get(c.symbol) is not None and vols[c.symbol].volume is not None for c in cands):
+        return None
+    best = max(vols[c.symbol].volume for c in cands)
+    if best <= 0:
+        return None
+    return min((c for c in cands if vols[c.symbol].volume == best), key=lambda c: (c.expiration, c.symbol)).symbol
+
+
 @dataclass
 class RunResult:
     engine: LiquidityEngine | None
@@ -126,7 +147,18 @@ def run(
     def n6():
         return policies.require("pre_window_when_reference_closed", "reference market closed").value
 
+    resume_to = None
     for s in sessions[k:]:
+        if engine.suspended and resume_to is not None:
+            new = instrument.contract(resume_to)
+            # coarse evidence that arrived while suspended is not applied (engine was not processing)
+            while ci < len(coarse) and coarse[ci].available_minute <= s.start:
+                ci += 1
+            engine.resume(s.start, new.symbol, new.grid, {"reason": "N9_RESUME"})
+            selector.replaced.append(selector.current)
+            selector.current = new.symbol
+            unevaluated.clear()
+            resume_to = None
         if pending is not None:
             new = instrument.contract(pending.to_contract)
             engine.rollover(s.start, new.symbol, new.grid, pending.delta,
@@ -134,9 +166,17 @@ def run(
             selector.apply(pending)
             result.decisions.append(pending)
             pending = None
-        if selector is not None and not selector.current_eligible_at(s.start):
+        if selector is not None and not engine.suspended and not selector.current_eligible_at(s.start):
             engine.suspend(s.start, f"current contract {selector.current} ineligible and no verified successor")
-            break
+        if engine.suspended:
+            if resume_to is None:
+                # N9(b): while suspended, evaluate each completed session (decision at its end,
+                # effective at the next session open)
+                pick = _select_by_volume(instrument, volumes_for, s, s.end, selector)
+                result.selection_log.append({"session_id": s.session_id, "suspended": True, "resume_pick": pick})
+                if pick is not None:
+                    resume_to = pick
+            continue
         plan = plan_session(s, reference, n6, instrument.nominal_pre_window_end,
                             reference.tz if reference else None)
         engine.begin_session(plan)

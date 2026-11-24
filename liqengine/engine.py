@@ -110,6 +110,7 @@ class LiquidityEngine:
         self._observed_bars: dict[str, dict[int, Bar]] = {}
         self._missing_log: dict[str, set[int]] = {}
         self.suspended = False
+        self._in_halt = False
         self.log: list[dict] = []
         self.data_quality: list[dict] = []
 
@@ -201,8 +202,12 @@ class LiquidityEngine:
         elif status is MinuteStatus.VERIFIED_ZERO_TRADE:
             self._open_gap = None
             self._step_zero_trade(m)
+        elif status is MinuteStatus.VERIFIED_HALT:
+            if not self._in_halt:
+                self._closure(m, RejectReason.UNSCHEDULED_HALT, "UNSCHEDULED_HALT_START")
         else:
             self._step_missing(m, status)
+        self._in_halt = status is MinuteStatus.VERIFIED_HALT
         self._step_deadline(m)
 
         # source windows
@@ -388,7 +393,7 @@ class LiquidityEngine:
         c.processed += 1
         if bar is not None:
             c.add_bar(bar)
-        elif status.is_missing_data:
+        elif status.is_missing_data or status is MinuteStatus.VERIFIED_HALT:
             c.invalid = True
 
     def _close_candle(self, t1: int):
@@ -494,11 +499,14 @@ class LiquidityEngine:
         return r
 
     # ------------------------------------------------------------- closures
-    def _closure(self, t1: int):
+    def _closure(self, t1: int, reason: RejectReason = RejectReason.SCHEDULED_CLOSURE,
+                 label: str = "SCHEDULED_CLOSURE"):
+        """Closure rules at boundary t1: scheduled closure (A5), or a notice-
+        verified unscheduled halt starting at minute t1 (N22(b))."""
         for eid in list(self._pending):
             e = self.events[eid]
             self._pending.remove(eid)
-            self._reject(e, t1 - 1, RejectReason.SCHEDULED_CLOSURE)
+            self._reject(e, t1 - 1, reason)
         if self._confirmed:
             pol = self.policies.require(
                 "counter_across_closure", f"scheduled closure at minute {t1} while sweeps are tracked"
@@ -510,7 +518,9 @@ class LiquidityEngine:
         if self._candle is not None and t1 % 15 != 0:
             self._candle = None  # shortened candle discarded
         self._open_gap = None
-        self._log(t1, "SCHEDULED_CLOSURE")
+        if reason is RejectReason.UNSCHEDULED_HALT:
+            self.data_quality.append({"minute": t1, "kind": "UNSCHEDULED_HALT_NOTICE_VERIFIED"})
+        self._log(t1, label)
 
     # ------------------------------------------------------------- rollover
     def rollover(self, minute: int, new_contract: str, new_grid: TickGrid, delta: Decimal | None, info: dict):
@@ -564,6 +574,24 @@ class LiquidityEngine:
         self.data_quality.append({"minute": minute, "kind": "PROCESSING_SUSPENDED", "reason": reason})
         self._log(minute, "PROCESSING_SUSPENDED", reason=reason)
 
+    def resume(self, minute: int, new_contract: str, new_grid: TickGrid, info: dict):
+        """N9(b): resume after an I2.4 suspension on a newly selected contract.
+        No price adjustment can be measured, so every unconsumed level is
+        quarantined and frozen (same treatment as I1 / N17)."""
+        if not self.suspended:
+            raise EngineStateError("resume() requires a suspended engine")
+        old = self.contract
+        for r in list(self._testable_refs()):
+            self._index_remove(r)
+            self._quarantine_unresolvable(r, minute, "SUSPENSION_NO_ADJUSTMENT", f"RESUME:{old}->{new_contract}")
+            r.coordinates_valid = False
+        self.contract, self.grid = new_contract, new_grid
+        self._fractal.clear()
+        self._candle = None
+        self.suspended = False
+        self.data_quality.append({"minute": minute, "kind": "PROCESSING_RESUMED", "contract": new_contract, **info})
+        self._log(minute, "PROCESSING_RESUMED", old=old, new=new_contract, **info)
+
     # ------------------------------------------------------ coarse evidence
     def apply_coarse_evidence(self, ev: CoarseBar):
         """A4 step 2-5 / I6. Called by the driver before processing minute
@@ -571,19 +599,26 @@ class LiquidityEngine:
         if self._last_minute is not None and ev.available_minute <= self._last_minute:
             raise EngineStateError("coarse evidence applied late; driver must apply it in time order")
         bars = self._observed_bars.get(ev.contract, {})
-        obs = [b for mm, b in bars.items() if ev.start_minute <= mm < ev.end_minute]
-        window = set(range(ev.start_minute, ev.end_minute))
-        missing_in_window = window & self._missing_log.get(ev.contract, set())
+        missing_log = self._missing_log.get(ev.contract, set())
+        window = set(range(ev.start_minute, ev.end_minute))                 # minutes the extreme bounds
+        attr = set(range(ev.start_minute, ev.attribution_end))             # minutes it printed within
+        obs_b = [b for mm, b in bars.items() if ev.start_minute <= mm < ev.end_minute]
+        obs_a = [b for mm, b in bars.items() if ev.start_minute <= mm < ev.attribution_end]
+        missing_in_window = attr & missing_log
         grid = TickGrid(self.instrument.contract(ev.contract).tick_size) if self.instrument.has_expirations else self.grid
-        hi, lo = grid.to_ticks(ev.high), grid.to_ticks(ev.low)
-        obs_hi = max((b.high for b in obs), default=None)
-        obs_lo = min((b.low for b in obs), default=None)
-        if obs_hi is not None and (hi < obs_hi or lo > obs_lo):
+        hi = None if ev.high is None else grid.to_ticks(ev.high)
+        lo = None if ev.low is None else grid.to_ticks(ev.low)
+        bound_hi = max((b.high for b in obs_b), default=None)
+        bound_lo = min((b.low for b in obs_b), default=None)
+        if (hi is not None and bound_hi is not None and hi < bound_hi) or \
+                (lo is not None and bound_lo is not None and lo > bound_lo):
             self.data_quality.append({"minute": ev.available_minute, "kind": "COARSE_EVIDENCE_INCONSISTENT",
                                       "source": ev.source, "contract": ev.contract})
             return
-        hi_from_gap = missing_in_window and (obs_hi is None or hi > obs_hi)
-        lo_from_gap = missing_in_window and (obs_lo is None or lo < obs_lo)
+        obs_hi = max((b.high for b in obs_a), default=None)
+        obs_lo = min((b.low for b in obs_a), default=None)
+        hi_from_gap = hi is not None and bool(missing_in_window) and (obs_hi is None or hi > obs_hi)
+        lo_from_gap = lo is not None and bool(missing_in_window) and (obs_lo is None or lo < obs_lo)
         A = ev.available_minute
         for r in sorted(self.refs.values(), key=lambda r: r.ref_id):
             if not r.quarantine_reasons:
@@ -601,6 +636,8 @@ class LiquidityEngine:
                 # The coarse extreme is attributable to this reason's minutes only if
                 # every missing minute in the coarse window belongs to this reason.
                 attributable = missing_in_window <= q.all_minutes
+                if (hi if r.direction is Direction.BSL else lo) is None:
+                    continue  # this evidence says nothing about this side
                 if q.kind == "DATA_GAP":
                     if r.direction is Direction.BSL:
                         untouched, proven = hi <= P, hi_from_gap and attributable and hi >= P + 1

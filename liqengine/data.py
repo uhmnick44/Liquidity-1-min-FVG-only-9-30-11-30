@@ -44,6 +44,7 @@ class MinuteStatus(Enum):
     VERIFIED_ZERO_TRADE = "VERIFIED_ZERO_TRADE"
     CONFIRMED_MISSING = "CONFIRMED_MISSING"
     UNCERTAIN = "UNCERTAIN"
+    VERIFIED_HALT = "VERIFIED_HALT"   # N22(b): unscheduled halt confirmed by an official exchange notice
 
     @property
     def is_missing_data(self) -> bool:
@@ -70,6 +71,9 @@ class MinuteEvidence:
     verified_zero_trade: dict[str, set[int]] = field(default_factory=dict)
     confirmed_missing: dict[str, set[int]] = field(default_factory=dict)
     source: str = ""
+    # N22(b): exchange-wide unscheduled halts confirmed by official notice (UTC minutes)
+    verified_halts: set[int] = field(default_factory=set)
+    halt_sources: list[str] = field(default_factory=list)
 
 
 class BarStore:
@@ -89,7 +93,13 @@ class BarStore:
         return sorted(self.bars)
 
     def classify(self, contract: str, minute: int, evidence: MinuteEvidence | None) -> MinuteStatus:
-        if minute in self.bars.get(contract, {}):
+        observed = minute in self.bars.get(contract, {})
+        if evidence is not None and minute in evidence.verified_halts:
+            if observed:
+                raise DataIntegrityError(
+                    f"{contract} printed at minute {minute}, inside a notice-verified halt: notice and data conflict")
+            return MinuteStatus.VERIFIED_HALT
+        if observed:
             return MinuteStatus.OBSERVED
         if evidence is not None:
             if minute in evidence.verified_zero_trade.get(contract, ()):

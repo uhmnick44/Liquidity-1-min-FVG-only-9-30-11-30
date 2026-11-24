@@ -1,5 +1,7 @@
 # Open Items Register — every unresolved ambiguity (as of 2026-11-24)
 
+> **RESOLVED 2026-11-24:** every recommendation below was approved. The binding record is [`SPEC_v1.2.md`](SPEC_v1.2.md). Only the Section C data/verification gaps remain.
+
 These are all the ambiguities left after spec v1.1 and the dataset audit, in one place.
 
 - **Section A:** behaviour the spec does not determine. The engine raises `UnauthorizedPolicyError` instead of choosing, or has no rule at all.

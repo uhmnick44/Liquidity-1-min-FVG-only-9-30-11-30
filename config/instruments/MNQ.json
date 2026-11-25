@@ -1,0 +1,211 @@
+{
+ "root": "MNQ",
+ "has_expirations": true,
+ "tick_size": "0.25",
+ "exchange_calendar_id": "CME_GLBX_MNQ_from_status",
+ "reference_calendar_id": "NYSE",
+ "nominal_pre_window_end": null,
+ "verified": true,
+ "verified_by": "Databento GLBX.MDP3 definition schema (exchange security definitions); cross-checked against 1m bars (all prices on grid, last bar 09:29 ET each expiry)",
+ "sources": {
+  "definitions": "/tmp/claude-0/-home-user-Liquidity-1-min-FVG-only-9-30-11-30/a5374079-0a69-51a4-9bfd-dd7274b42aad/scratchpad/raw_definition",
+  "listed_months": [
+   3,
+   6,
+   9,
+   12
+  ],
+  "built_utc": "2026-11-25T03:52:26Z"
+ },
+ "contracts": [
+  {
+   "symbol": "MNQZ2",
+   "instrument_id": 20332,
+   "expiration": "2022-12-16T14:30:00Z",
+   "activation": "2021-09-17T13:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQH3",
+   "instrument_id": 8071,
+   "expiration": "2023-03-17T13:30:00Z",
+   "activation": "2021-12-17T14:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQM3",
+   "instrument_id": 4973,
+   "expiration": "2023-06-16T13:30:00Z",
+   "activation": "2022-03-18T13:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQU3",
+   "instrument_id": 9235,
+   "expiration": "2023-09-15T13:30:00Z",
+   "activation": "2022-06-17T13:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQZ3",
+   "instrument_id": 34070,
+   "expiration": "2023-12-15T14:30:00Z",
+   "activation": "2022-09-16T13:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQH4",
+   "instrument_id": 7101,
+   "expiration": "2024-03-15T13:30:00Z",
+   "activation": "2022-12-16T14:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQM4",
+   "instrument_id": 10,
+   "expiration": "2024-06-21T13:30:00Z",
+   "activation": "2023-03-17T13:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQU4",
+   "instrument_id": 13941,
+   "expiration": "2024-09-20T13:30:00Z",
+   "activation": "2023-06-16T13:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQZ4",
+   "instrument_id": 42008411,
+   "expiration": "2024-12-20T14:30:00Z",
+   "activation": "2023-09-15T13:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQH5",
+   "instrument_id": 42003617,
+   "expiration": "2025-03-21T13:30:00Z",
+   "activation": "2023-12-15T14:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQM5",
+   "instrument_id": 42009475,
+   "expiration": "2025-06-20T13:30:00Z",
+   "activation": "2024-03-15T13:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQU5",
+   "instrument_id": 42003472,
+   "expiration": "2025-09-19T13:30:00Z",
+   "activation": "2024-06-21T13:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQZ5",
+   "instrument_id": 42001149,
+   "expiration": "2025-12-19T14:30:00Z",
+   "activation": "2024-09-20T13:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQH6",
+   "instrument_id": 42004946,
+   "expiration": "2026-03-20T13:30:00Z",
+   "activation": "2024-12-20T14:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQM6",
+   "instrument_id": 42004936,
+   "expiration": "2026-06-18T13:30:00Z",
+   "activation": "2025-03-21T13:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQU6",
+   "instrument_id": 42004800,
+   "expiration": "2026-09-18T13:30:00Z",
+   "activation": "2025-06-20T13:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQZ6",
+   "instrument_id": 42005282,
+   "expiration": "2026-12-18T14:30:00Z",
+   "activation": "2025-09-19T13:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQH7",
+   "instrument_id": 42019197,
+   "expiration": "2027-03-19T13:30:00Z",
+   "activation": "2025-12-19T14:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQM7",
+   "instrument_id": 42022776,
+   "expiration": "2027-06-17T13:30:00Z",
+   "activation": "2026-03-20T13:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQU7",
+   "instrument_id": 42006019,
+   "expiration": "2027-09-17T13:30:00Z",
+   "activation": "2026-06-18T13:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  },
+  {
+   "symbol": "MNQZ7",
+   "instrument_id": 42031273,
+   "expiration": "2027-12-17T14:30:00Z",
+   "activation": "2026-09-18T13:30:00Z",
+   "tick_size": "0.25",
+   "in_expiration_cycle": true,
+   "is_outright": true
+  }
+ ]
+}

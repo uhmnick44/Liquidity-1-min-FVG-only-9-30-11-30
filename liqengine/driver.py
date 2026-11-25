@@ -116,17 +116,29 @@ def run(
             current = None
             while k < len(sessions) and current is None:
                 s = sessions[k]
+                # Figures for session k must be available when the decision is taken. With
+                # same-session sources (1m sums) that is s.end; with published figures it is
+                # the end of the next session at the latest (N33). Processing starts at the
+                # session after the decision.
+                if external_volumes is None:
+                    decided, start_k = s.end, k + 1
+                else:
+                    if k + 1 >= len(sessions):
+                        break
+                    decided, start_k = sessions[k + 1].end, k + 2
                 cands = [c for c in instrument.contracts if c.is_outright and c.in_expiration_cycle
-                         and c.expiration > s.end and (c.activation is None or c.activation <= s.start)]
-                vols = volumes_for(s, [c.symbol for c in cands], s.end)
+                         and c.expiration > decided and (c.activation is None or c.activation <= s.start)]
+                vols = volumes_for(s, [c.symbol for c in cands], decided)
                 if cands and all(vols.get(c.symbol) and vols[c.symbol].volume is not None for c in cands):
                     best = max(vols[c.symbol].volume for c in cands)
                     current = min((c for c in cands if vols[c.symbol].volume == best),
                                   key=lambda c: (c.expiration, c.symbol)).symbol
-                    result.selection_log.append({"session_id": s.session_id, "initial_contract": current})
-                else:
-                    result.selection_log.append({"session_id": s.session_id, "initial_contract": None,
-                                                 "reason": "VOLUME_UNVERIFIED"})
+                    result.selection_log.append({"session_id": s.session_id, "initial_contract": current,
+                                                 "decided_minute": decided})
+                    k = start_k
+                    break
+                result.selection_log.append({"session_id": s.session_id, "initial_contract": None,
+                                             "reason": "VOLUME_UNVERIFIED"})
                 k += 1
             if current is None:
                 return result
@@ -148,7 +160,33 @@ def run(
         return policies.require("pre_window_when_reference_closed", "reference market closed").value
 
     resume_to = None
+
+    def decide(now, just_ended, pending):
+        """Evaluate queued crossover sessions with figures available by `now`
+        (A12.2: the switch takes effect at the next session open after confirmation).
+        N33: a crossover session D whose figures are still incomplete when the
+        session after D (D+1) has ended is unverified and dropped (I2: retain)."""
+        while unevaluated and pending is None:
+            cs = unevaluated[0]
+            syms = [selector.current] + [c.symbol for c in selector._eligible_successors(now)]
+            vols = volumes_for(cs, syms, now)
+            if external_volumes is not None and len(vols) < len(syms):
+                if just_ended is not None and just_ended is not cs:
+                    unevaluated.pop(0)
+                    selector.uncertain.append({"session_id": cs.session_id, "reason": "VOLUME_NOT_PUBLISHED_BY_END_OF_NEXT_SESSION",
+                                               "missing": sorted(set(syms) - set(vols))})
+                    continue
+                break  # figures not yet available; evaluate later (no look-ahead)
+            unevaluated.pop(0)
+            d = selector.evaluate(cs, vols, store, evidence, now)
+            if d is not None:
+                pending = d
+                unevaluated.clear()
+        return pending
+
     for s in sessions[k:]:
+        if selector is not None and pending is None and unevaluated and not engine.suspended:
+            pending = decide(s.start, None, pending)   # figures published during the closure
         if engine.suspended and resume_to is not None:
             new = instrument.contract(resume_to)
             # coarse evidence that arrived while suspended is not applied (engine was not processing)
@@ -189,17 +227,6 @@ def run(
             engine.process_minute(m, status, bar)
         if selector is not None:
             unevaluated.append(s)
-            decided = s.end
-            while unevaluated and pending is None:
-                cs = unevaluated[0]
-                syms = [selector.current] + [c.symbol for c in selector._eligible_successors(decided)]
-                vols = volumes_for(cs, syms, decided)
-                if external_volumes is not None and len(vols) < len(syms):
-                    break  # figures not yet available; evaluate later (no look-ahead)
-                unevaluated.pop(0)
-                d = selector.evaluate(cs, vols, store, evidence, decided)
-                if d is not None:
-                    pending = d
-                    unevaluated.clear()
+            pending = decide(s.end, s, pending)
     result.selection_log.extend(selector.uncertain if selector else [])
     return result

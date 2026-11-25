@@ -16,8 +16,12 @@ must be checked against real statistics data before use (see OPEN_ITEMS C3).
   minutes of S before minute(ts_event), and printed no later than that minute.
   A record stamped after S ended (and before the next session) bounds all of S.
   It becomes usable at the minute after ts_recv.
-- DELETE actions are not applied; they are reported. For cleared volume only
-  the first-received figure is used; later differing figures are reported.
+- DELETE actions are not applied; they are reported.
+- Cleared volume (N32, pending trader approval): if `bar_volume` is given, a
+  figure below the volume observed in that contract's 1m bars for the session
+  is rejected as inconsistent. Cleared volume includes block trades, so it can
+  never be lower. The first-received figure that passes is used, from its own
+  receipt time. Later differing figures are reported, never applied.
 """
 from __future__ import annotations
 
@@ -41,6 +45,7 @@ class StatsReport:
     used_extremes: int = 0
     deletes_ignored: int = 0
     revised_volume: list = field(default_factory=list)
+    rejected_below_bar_volume: list = field(default_factory=list)
     ts_ref_mismatch: list = field(default_factory=list)
     unmapped: int = 0
     outside_calendar: int = 0
@@ -64,9 +69,10 @@ def _last_ended_session(cal: ExchangeCalendar, minute: int):
     return best
 
 
-def convert(records, symbol_of, exchange: ExchangeCalendar, instrument):
+def convert(records, symbol_of, exchange: ExchangeCalendar, instrument, bar_volume=None):
     """records: iterable of dicts or databento_dbn.StatMsg.
-    symbol_of(instrument_id, utc_date) -> contract symbol or None."""
+    symbol_of(instrument_id, utc_date) -> contract symbol or None.
+    bar_volume(symbol, session) -> observed 1m volume sum, or None (N32 check)."""
     rep = StatsReport()
     volumes: dict[tuple[str, str], SessionVolume] = {}
     coarse: list[CoarseBar] = []
@@ -97,6 +103,12 @@ def convert(records, symbol_of, exchange: ExchangeCalendar, instrument):
                     continue
             qty = int(_get(r, "quantity"))
             key = (sym, s.session_id)
+            if key not in volumes and bar_volume is not None:
+                bv = bar_volume(sym, s)
+                if bv is not None and qty < bv:
+                    rep.rejected_below_bar_volume.append({"symbol": sym, "session": s.session_id,
+                                                          "cleared": qty, "bar_volume": bv})
+                    continue
             if key in volumes:
                 if volumes[key].volume != qty:
                     rep.revised_volume.append({"symbol": sym, "session": s.session_id,

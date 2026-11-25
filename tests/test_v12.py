@@ -140,3 +140,19 @@ def test_session_high_records_become_one_sided_coarse_bars():
     assert hi.high == GRID.to_price(P) and hi.low is None and (hi.end_minute, hi.attribution_end) == (BASE + 20, BASE + 21)
     assert lo.low == GRID.to_price(P) and (lo.end_minute, lo.attribution_end) == (BASE + 60, BASE + 60)
     assert hi.available_minute == BASE + 21 and rep.used_extremes == 2
+
+
+def test_per_contract_halt_evidence():
+    st = BarStore()
+    ev = MinuteEvidence(verified_halts={C: {BASE}})
+    assert st.classify(C, BASE, ev) is MinuteStatus.VERIFIED_HALT
+    assert st.classify("OTHER", BASE, ev) is MinuteStatus.UNCERTAIN
+
+
+def test_n32_cleared_volume_below_bar_volume_rejected_then_revision_used():
+    i = inst(contracts(A=10**9))
+    recs = [stat(6, 1, (BASE + 190) * NS, qty=0), stat(6, 1, (BASE + 200) * NS, qty=500)]
+    vols, _, rep = convert(recs, lambda *_: "A", cal2(), i, bar_volume=lambda sym, s: 400)
+    v = vols[("A", "2025-03-04")]
+    assert v.volume == 500 and v.available_minute == BASE + 201
+    assert rep.rejected_below_bar_volume[0]["cleared"] == 0

@@ -71,8 +71,9 @@ class MinuteEvidence:
     verified_zero_trade: dict[str, set[int]] = field(default_factory=dict)
     confirmed_missing: dict[str, set[int]] = field(default_factory=dict)
     source: str = ""
-    # N22(b): exchange-wide unscheduled halts confirmed by official notice (UTC minutes)
-    verified_halts: set[int] = field(default_factory=set)
+    # N22(b): unscheduled halts confirmed by official notice (UTC minutes).
+    # Either one exchange-wide set, or contract -> set when halts differ per contract.
+    verified_halts: set[int] | dict[str, set[int]] = field(default_factory=set)
     halt_sources: list[str] = field(default_factory=list)
 
 
@@ -94,7 +95,10 @@ class BarStore:
 
     def classify(self, contract: str, minute: int, evidence: MinuteEvidence | None) -> MinuteStatus:
         observed = minute in self.bars.get(contract, {})
-        if evidence is not None and minute in evidence.verified_halts:
+        halts = None if evidence is None else evidence.verified_halts
+        if isinstance(halts, dict):
+            halts = halts.get(contract, ())
+        if halts and minute in halts:
             if observed:
                 raise DataIntegrityError(
                     f"{contract} printed at minute {minute}, inside a notice-verified halt: notice and data conflict")

@@ -111,6 +111,7 @@ class LiquidityEngine:
         self._missing_log: dict[str, set[int]] = {}
         self.suspended = False
         self._in_halt = False
+        self._q_ids: set[str] = set()
         self.log: list[dict] = []
         self.data_quality: list[dict] = []
 
@@ -366,6 +367,7 @@ class LiquidityEngine:
             if q is None:
                 q = QuarantineReason(gid, "DATA_GAP", m, self.contract, set())
                 r.quarantine_reasons[gid] = q
+                self._q_ids.add(r.ref_id)
                 if not r.quarantined:
                     r.quarantined = True
                     self._log(m, "LIQUIDITY_QUARANTINED", ref_id=r.ref_id, reason=gid)
@@ -482,6 +484,7 @@ class LiquidityEngine:
             if new_q is not None:
                 target.quarantine_reasons[new_q.reason_id] = new_q
                 target.quarantined = True
+                self._q_ids.add(target.ref_id)
             self._log(availability, "LIQUIDITY_CONSOLIDATED", ref_id=target.ref_id, label=label.value)
             return target
         r = LiquidityReference(
@@ -492,6 +495,7 @@ class LiquidityEngine:
         if new_q is not None:
             r.quarantine_reasons[new_q.reason_id] = new_q
             r.quarantined = True
+            self._q_ids.add(r.ref_id)
         self.refs[r.ref_id] = r
         self._index_add(r)
         self._log(availability, "LIQUIDITY_REGISTERED", ref_id=r.ref_id, label=label.value,
@@ -558,6 +562,7 @@ class LiquidityEngine:
 
     def _quarantine_unresolvable(self, r: LiquidityReference, minute: int, kind: str, rid: str):
         r.quarantine_reasons[rid] = QuarantineReason(rid, kind, minute, None, None)
+        self._q_ids.add(r.ref_id)
         if not r.quarantined:
             r.quarantined = True
         self._log(minute, "LIQUIDITY_QUARANTINED", ref_id=r.ref_id, reason=kind)
@@ -598,12 +603,15 @@ class LiquidityEngine:
         ev.available_minute (never earlier)."""
         if self._last_minute is not None and ev.available_minute <= self._last_minute:
             raise EngineStateError("coarse evidence applied late; driver must apply it in time order")
+        if not any(q.unresolved_minutes and not q.resolved and q.contract == ev.contract
+                   for r in self._quarantined_refs() for q in r.quarantine_reasons.values()):
+            return  # nothing this evidence could resolve
         bars = self._observed_bars.get(ev.contract, {})
         missing_log = self._missing_log.get(ev.contract, set())
         window = set(range(ev.start_minute, ev.end_minute))                 # minutes the extreme bounds
         attr = set(range(ev.start_minute, ev.attribution_end))             # minutes it printed within
-        obs_b = [b for mm, b in bars.items() if ev.start_minute <= mm < ev.end_minute]
-        obs_a = [b for mm, b in bars.items() if ev.start_minute <= mm < ev.attribution_end]
+        obs_a = [bars[mm] for mm in range(ev.start_minute, ev.attribution_end) if mm in bars]
+        obs_b = [b for b in obs_a if b.minute < ev.end_minute]
         missing_in_window = attr & missing_log
         grid = TickGrid(self.instrument.contract(ev.contract).tick_size) if self.instrument.has_expirations else self.grid
         hi = None if ev.high is None else grid.to_ticks(ev.high)
@@ -620,9 +628,7 @@ class LiquidityEngine:
         hi_from_gap = hi is not None and bool(missing_in_window) and (obs_hi is None or hi > obs_hi)
         lo_from_gap = lo is not None and bool(missing_in_window) and (obs_lo is None or lo < obs_lo)
         A = ev.available_minute
-        for r in sorted(self.refs.values(), key=lambda r: r.ref_id):
-            if not r.quarantine_reasons:
-                continue
+        for r in self._quarantined_refs():
             p = r.price_in(ev.contract)
             if p is None:
                 continue
@@ -690,6 +696,10 @@ class LiquidityEngine:
         r.consuming_event_id = e.event_id
         self._reject(e, A, RejectReason.PENETRATED_DURING_MISSING_DATA)
         self._log(A, "LIQUIDITY_CONSUMED", ref_id=r.ref_id, kind="INFERRED_FROM_COARSE_DATA", source=ev.source)
+
+    def _quarantined_refs(self):
+        """References that carry any quarantine reason, in id order (deterministic)."""
+        return [self.refs[k] for k in sorted(self._q_ids)]
 
     def _maybe_reinstate(self, r: LiquidityReference, A: int):
         if not r.quarantined or r.consumed or not r.coordinates_valid:

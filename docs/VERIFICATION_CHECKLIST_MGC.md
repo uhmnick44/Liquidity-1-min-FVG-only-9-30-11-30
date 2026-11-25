@@ -41,3 +41,9 @@ Only halts with an explicit CME halt/pause/pre-open message **and** no bar print
 ## For information
 - 25,401 front-contract minutes in 2020–2026 have no bar and no explaining halt. Most are thin overnight minutes
   in 2020–2024; 141 fall in 09:30–11:30. They stay `UNCERTAIN` under N12/N14.
+
+## Pre-flight (2026-11-25, unverified calendars; not a validation run)
+Gold 2020-01-02 → 2026-11-20: 34 rollovers (MGCG0 → MGCZ6), all with a measured adjustment (N35), no suspension (N34);
+60,794 liquidity references; 60,164 sweep events; 7,801 confirmed setups invalidated by data gaps (thin overnight
+minutes); 502 references still quarantined at the end; 2,034 reinstated by venue session-high/low evidence. The MNQ
+engine output was re-checked byte-identical after the performance changes.

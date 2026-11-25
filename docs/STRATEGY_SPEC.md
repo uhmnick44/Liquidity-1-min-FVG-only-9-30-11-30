@@ -114,3 +114,21 @@ Same hypotheses, no rule changes. **v0.1 and v0.2 exactly as specified above**, 
   1 tick slippage and $1.00 round-trip commission (illustrative), more than 2 standard errors above zero.**
   Results are also shown by year. A result within 2 SE is inconclusive.
 - A pass would be a lead for forward testing, not proof of an edge.
+
+---
+
+# Variation v0.3 — breakeven at +0.5R, target 1R — [APPROVED 2026-11-25, PRE-REGISTERED before any v0.3 result]
+Identical to v0.1 (entry, stop at 2 × |fill − E|, all selection/execution rules) except:
+- **Target:** 1R (target = fill ± R, R = stop distance), filled when price trades 1 tick through.
+- **Breakeven:** when a candle trades **1 tick through +0.5R** (long: high ≥ entry + ⌈0.5R⌉ + 1 tick), the stop
+  moves to the **entry price**, effective from the **next 1-minute candle**. With 1m bars the trigger is known only at
+  that candle's close, so no intrabar order is assumed. A breakeven stop fills at the entry price with 1 tick of
+  slippage (`BREAKEVEN_STOP`).
+- Same-candle stop/target ambiguity: stop assumed first. Time exit at the NYSE close. Unchanged.
+- Breakeven condition before costs: P(reach 1R | reached +0.5R) must exceed ≈ P(no +0.5R) / P(+0.5R).
+
+**Evaluation (pre-registered):**
+- **Gold (MGC), 2020-01-01 → 2026-11-20:** the deciding, out-of-sample test (data unseen when v0.3 was proposed).
+  Pass = expectancy > 0 after 1 tick slippage and $1.00 round trip, more than 2 standard errors above zero.
+- **MNQ 2022–2026:** reported for comparison but **in-sample**. v0.3 was proposed after seeing MNQ v0.1 results, so
+  MNQ cannot confirm it.

@@ -1,4 +1,4 @@
-# Verification Checklist — MGC (micro gold) test
+# Verification Checklist — MGC (micro gold) test — SIGNED OFF 2026-11-25 (sections A–E: OK)
 
 Check against official sources in your browser (CME Group holiday / trading-hours notices for **metals**;
 NYSE holidays). Reply `OK` per section, or list the wrong line. All times are ET.

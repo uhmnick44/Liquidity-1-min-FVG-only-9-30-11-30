@@ -1,8 +1,8 @@
 {
  "calendar_id": "CME_GLBX_MGC_from_status",
  "version": "status-20261125",
- "verified": false,
- "verified_by": null,
+ "verified": true,
+ "verified_by": "Trader, 2026-11-25: checked docs/VERIFICATION_CHECKLIST_MGC.md sections A-E against official CME/NYSE sources, incl. overrides 2020-02-28 and 2020-06-30/07-01",
  "source": "CME matching-engine status messages via Databento GLBX.MDP3 status schema; scheduled transitions identical across all active outrights",
  "sessions": [
   {

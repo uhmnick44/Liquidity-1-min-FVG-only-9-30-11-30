@@ -1,8 +1,8 @@
 {
 "calendar_id": "NYSE",
 "version": "draft2-pmc+exchange_calendars-2019-11..2026-12",
-"verified": false,
-"verified_by": "2022-09-26..2026-10-23 signed off by trader 2026-11-25; other dates PENDING",
+"verified": true,
+"verified_by": "Trader, 2026-11-25: 2022-09-26..2026-10-23 (MNQ checklist) and all other days (MGC checklist section A)",
 "source": "DRAFT from pandas_market_calendars XNYS and exchange_calendars XNYS (agree on every day); requires trader verification against NYSE notices",
 "tz": "America/New_York",
 "days": [

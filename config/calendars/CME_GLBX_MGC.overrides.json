@@ -10,7 +10,7 @@
     ]
    ],
    "reason": "Status feed has no session-open message (Databento condition 'degraded' 2020-02-27/28); bars trade 03:00-08:59 and 15:00-16:59 ET; normal Thu 18:00 - Fri 17:00 ET hours assumed",
-   "status": "PENDING_TRADER_VERIFICATION"
+   "status": "VERIFIED_BY_TRADER_2026-11-25"
   },
   {
    "replace_session_id": "2020-07-01",
@@ -35,7 +35,7 @@
     }
    ],
    "reason": "Status feed lacks the 2020-06-30 17:00 close and 18:00 reopen (Databento condition 'degraded' 2020-06-30/07-01); merged 47h segment split into two normal sessions",
-   "status": "PENDING_TRADER_VERIFICATION"
+   "status": "VERIFIED_BY_TRADER_2026-11-25"
   }
  ]
 }

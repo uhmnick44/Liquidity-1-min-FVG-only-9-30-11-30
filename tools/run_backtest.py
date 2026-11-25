@@ -85,6 +85,8 @@ def main(run_dir, out_dir, *rest):
     variant = {}
     if "--stop-mult" in args:
         i = args.index("--stop-mult"); variant["stop_multiple"] = int(args[i + 1]); del args[i:i + 2]
+    if "--breakeven-r" in args:
+        i = args.index("--breakeven-r"); variant["breakeven_at_r"] = Decimal(args[i + 1]); del args[i:i + 2]
     if "--target-r" in args:
         i = args.index("--target-r"); variant["target_r"] = Decimal(args[i + 1]); del args[i:i + 2]
     split = None

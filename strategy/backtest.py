@@ -63,6 +63,7 @@ class Params:
     target_through_ticks: int = 1    # 5.2: price must trade this far through the target (0 = touch)
     stop_multiple: int = 2           # 4.1 (v0.1: 2; v0.2: 1)
     target_r: Decimal = Decimal("0.5")  # 5.1 target in R (v0.1: 0.5; v0.2: 1); fractional ticks rounded toward entry
+    breakeven_at_r: Decimal | None = None  # v0.3: 0.5 -> stop to entry after +0.5R traded through (next candle)
     # Questions not settled by the approved spec (reported, see S-items):
     trade_reference_closed_days: bool | None = None       # S2
     opposite_same_candle: str | None = None               # S1: "SKIP"
@@ -252,6 +253,11 @@ def simulate(setups: list[Setup], mkt: Market, p: Params):
         stop = fill - risk if long else fill + risk
         target = fill + tdist if long else fill - tdist
         tr = Trade(s, "LONG" if long else "SHORT", eb.m, fill, stop, target, d)
+        be_dist = None
+        if p.breakeven_at_r is not None:
+            # trigger needs at least the full fraction of R: fractional ticks rounded away from entry
+            be_dist = int((p.breakeven_at_r * risk).to_integral_value(rounding="ROUND_CEILING"))
+        be_from = None      # first candle on which the breakeven stop is active
         if eb.m != q + 1:
             tr.flags.append("ENTRY_BAR_NOT_IMMEDIATELY_NEXT_MINUTE")
         rth_close = mkt.rth_close.get(sid)
@@ -266,26 +272,34 @@ def simulate(setups: list[Setup], mkt: Market, p: Params):
                 tr.reason = "TIME_EXIT_RTH_CLOSE"
                 break
             first = b is eb
+            be_on = be_from is not None and b.m >= be_from
+            cur_stop = fill if be_on else stop
             if long:
-                gap_stop = (not first) and b.o <= stop
-                hit_stop = b.l <= stop
+                gap_stop = (not first) and b.o <= cur_stop
+                hit_stop = b.l <= cur_stop
                 hit_tgt = b.h >= target + p.target_through_ticks
             else:
-                gap_stop = (not first) and b.o >= stop
-                hit_stop = b.h >= stop
+                gap_stop = (not first) and b.o >= cur_stop
+                hit_stop = b.h >= cur_stop
                 hit_tgt = b.l <= target - p.target_through_ticks
+            kind = "BREAKEVEN_STOP" if be_on else "STOP"
             if gap_stop:
-                tr.exit_minute, tr.reason = b.m, "STOP_GAP"
+                tr.exit_minute, tr.reason = b.m, kind + "_GAP" if be_on else "STOP_GAP"
                 tr.exit = b.o - p.stop_slippage if long else b.o + p.stop_slippage
                 break
             if hit_stop:
-                tr.exit_minute, tr.reason = b.m, "STOP"
-                tr.exit = stop - p.stop_slippage if long else stop + p.stop_slippage
+                tr.exit_minute, tr.reason = b.m, kind
+                tr.exit = cur_stop - p.stop_slippage if long else cur_stop + p.stop_slippage
                 tr.ambiguous_bar = hit_tgt
                 break
             if hit_tgt:
                 tr.exit_minute, tr.exit, tr.reason = b.m, target, "TARGET"
                 break
+            if be_dist is not None and be_from is None:
+                trig = (b.h >= fill + be_dist + p.target_through_ticks) if long else (b.l <= fill - be_dist - p.target_through_ticks)
+                if trig:
+                    be_from = b.m + 1
+                    tr.flags.append("BREAKEVEN_ARMED")
             prev = b
         else:
             tr.reason = "DATA_END"

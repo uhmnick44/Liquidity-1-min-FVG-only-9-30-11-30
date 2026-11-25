@@ -186,3 +186,45 @@ def test_fractional_target_rounds_toward_entry():
     p = Params(trade_reference_closed_days=False, opposite_same_candle="SKIP", stop_multiple=1, target_r=Decimal("0.5"))
     (t,), _ = run([ev("1", "SSL", 989, 990 - 0, q, q)], bars, p=p)   # fill 997, d = 7 -> 3.5 ticks -> 3
     assert t.target == 997 + 3
+
+
+# ---------------------------------------------------------------- v0.3 breakeven
+def _p03():
+    from decimal import Decimal
+    return Params(trade_reference_closed_days=False, opposite_same_candle="SKIP", target_r=Decimal(1),
+                  breakeven_at_r=Decimal("0.5"))
+
+
+def _entry_bars(q):
+    # long: E = 990, fill 1005, d = 15, risk 30, BE trigger +15 (needs high >= 1021), target 1035 (needs 1036)
+    return [Bar(q, 1000, 1001, 995, 1000), Bar(q + 1, 1004, 1005, 1003, 1004)]
+
+
+def test_v03_breakeven_scratch():
+    q = et(10, 0)
+    bars = _entry_bars(q) + [Bar(q + 2, 1010, 1021, 1009, 1018),      # triggers BE (1 tick through +0.5R)
+                             Bar(q + 3, 1015, 1016, 1000, 1002)]      # back through entry -> BE stop
+    (t,), _ = run([ev("1", "SSL", 999, 990, q, q)], bars + flat(q + 4, 300, 1002, 1), p=_p03())
+    assert t.target == 1035 and t.reason == "BREAKEVEN_STOP" and t.exit == 1004 and t.pnl_ticks == -1
+
+
+def test_v03_trigger_candle_does_not_use_be_stop_same_candle():
+    q = et(10, 0)
+    bars = _entry_bars(q) + [Bar(q + 2, 1010, 1021, 1003, 1005)]      # triggers and dips below entry in same candle
+    bars += flat(q + 3, 400, 1010, 1)
+    (t,), _ = run([ev("1", "SSL", 999, 990, q, q)], bars, p=_p03())
+    assert t.reason == "TIME_EXIT_RTH_CLOSE" and "BREAKEVEN_ARMED" in t.flags   # BE stop not applied inside trigger candle
+
+
+def test_v03_full_1r_target():
+    q = et(10, 0)
+    bars = _entry_bars(q) + [Bar(q + 2, 1010, 1021, 1009, 1018), Bar(q + 3, 1020, 1036, 1015, 1030)]
+    (t,), _ = run([ev("1", "SSL", 999, 990, q, q)], bars + flat(q + 4, 300, 1030, 1), p=_p03())
+    assert t.reason == "TARGET" and t.exit == 1035 and t.r == 1.0
+
+
+def test_v03_no_trigger_full_stop():
+    q = et(10, 0)
+    bars = _entry_bars(q) + [Bar(q + 2, 1010, 1020, 1009, 1012), Bar(q + 3, 1000, 1001, 970, 975)]  # 1020 = touch only
+    (t,), _ = run([ev("1", "SSL", 999, 990, q, q)], bars + flat(q + 4, 300, 975, 1), p=_p03())
+    assert t.reason == "STOP" and t.exit == 974

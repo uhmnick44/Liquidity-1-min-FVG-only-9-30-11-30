@@ -22,8 +22,15 @@ Status legend: **[APPROVED]** trader decision · **[OPEN]** not yet defined.
 1.7 **In a position:** while a trade is open, new sweeps are ignored. Setup selection resumes after the position
     is closed.
 
-## 2. 1-minute FVG — [OPEN]
-## 3. Entry trigger — [OPEN]
+## 2. 1-minute FVG — [REMOVED 2026-11-25]
+The trader confirmed the FVG plays no part in this strategy's entry. (The repository name predates this.)
+
+## 3. Entry trigger — [PARTLY APPROVED 2026-11-25]
+3.1 **Trigger:** enter when the active setup's sweep is confirmed, i.e. at the close of the confirmation candle q
+    (a BSL setup closes back below the level → short; an SSL setup closes back above the level → long).
+3.2 Fill model (backtest) — [OPEN]
+3.3 Confirmations on penetration candles k = 1..3 — [OPEN]
+3.4 Distance filter — [OPEN]
 ## 4. Stop loss — [OPEN]
 ## 5. Take profit / exit — [OPEN]
 ## 6. Risk, sizing, limits, costs — [OPEN]

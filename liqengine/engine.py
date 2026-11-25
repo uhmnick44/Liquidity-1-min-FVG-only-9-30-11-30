@@ -112,6 +112,8 @@ class LiquidityEngine:
         self.suspended = False
         self._in_halt = False
         self._q_ids: set[str] = set()
+        # refs with at least one price-resolvable, unresolved quarantine reason -> contract of that reason
+        self._open_q: dict[str, str | None] = {}
         self.log: list[dict] = []
         self.data_quality: list[dict] = []
 
@@ -373,6 +375,7 @@ class LiquidityEngine:
                     self._log(m, "LIQUIDITY_QUARANTINED", ref_id=r.ref_id, reason=gid)
             q.unresolved_minutes.add(m)
             q.all_minutes.add(m)
+            self._open_q[r.ref_id] = self.contract
 
     def _step_deadline(self, m: int):
         for eid in list(self._pending):
@@ -485,6 +488,7 @@ class LiquidityEngine:
                 target.quarantine_reasons[new_q.reason_id] = new_q
                 target.quarantined = True
                 self._q_ids.add(target.ref_id)
+                self._open_q[target.ref_id] = new_q.contract
             self._log(availability, "LIQUIDITY_CONSOLIDATED", ref_id=target.ref_id, label=label.value)
             return target
         r = LiquidityReference(
@@ -496,6 +500,7 @@ class LiquidityEngine:
             r.quarantine_reasons[new_q.reason_id] = new_q
             r.quarantined = True
             self._q_ids.add(r.ref_id)
+            self._open_q[r.ref_id] = new_q.contract
         self.refs[r.ref_id] = r
         self._index_add(r)
         self._log(availability, "LIQUIDITY_REGISTERED", ref_id=r.ref_id, label=label.value,
@@ -603,8 +608,8 @@ class LiquidityEngine:
         ev.available_minute (never earlier)."""
         if self._last_minute is not None and ev.available_minute <= self._last_minute:
             raise EngineStateError("coarse evidence applied late; driver must apply it in time order")
-        if not any(q.unresolved_minutes and not q.resolved and q.contract == ev.contract
-                   for r in self._quarantined_refs() for q in r.quarantine_reasons.values()):
+        open_ids = [rid for rid in sorted(self._open_q) if self._open_q[rid] == ev.contract or self._open_q[rid] is None]
+        if not open_ids:
             return  # nothing this evidence could resolve
         bars = self._observed_bars.get(ev.contract, {})
         missing_log = self._missing_log.get(ev.contract, set())
@@ -628,7 +633,7 @@ class LiquidityEngine:
         hi_from_gap = hi is not None and bool(missing_in_window) and (obs_hi is None or hi > obs_hi)
         lo_from_gap = lo is not None and bool(missing_in_window) and (obs_lo is None or lo < obs_lo)
         A = ev.available_minute
-        for r in self._quarantined_refs():
+        for r in [self.refs[rid] for rid in open_ids]:
             p = r.price_in(ev.contract)
             if p is None:
                 continue
@@ -668,6 +673,8 @@ class LiquidityEngine:
                     q.resolved_minute = A
                     self._log(A, "QUARANTINE_REASON_RESOLVED", ref_id=r.ref_id, reason=q.reason_id, source=ev.source)
             self._maybe_reinstate(r, A)
+            if not any(q.unresolved_minutes and not q.resolved and not q.disproven for q in r.quarantine_reasons.values()):
+                self._open_q.pop(r.ref_id, None)
 
     def _consume_from_evidence(self, r: LiquidityReference, q: QuarantineReason, A: int, ev: CoarseBar):
         flag = f"PENETRATION_PROVEN_INSIDE_GAP:{q.reason_id}"

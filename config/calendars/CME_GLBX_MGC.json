@@ -8442,13 +8442,24 @@
    ]
   },
   {
-   "session_id": "2020-07-01",
+   "session_id": "2020-06-30",
    "segments": [
     [
      "2020-06-29T22:00:00Z",
+     "2020-06-30T21:00:00Z"
+    ]
+   ],
+   "override": "Status feed lacks the 2020-06-30 17:00 close and 18:00 reopen (Databento condition 'degraded' 2020-06-30/07-01); merged 47h segment split into two normal sessions"
+  },
+  {
+   "session_id": "2020-07-01",
+   "segments": [
+    [
+     "2020-06-30T22:00:00Z",
      "2020-07-01T21:00:00Z"
     ]
-   ]
+   ],
+   "override": "Status feed lacks the 2020-06-30 17:00 close and 18:00 reopen (Databento condition 'degraded' 2020-06-30/07-01); merged 47h segment split into two normal sessions"
   },
   {
    "session_id": "2020-07-02",
@@ -23115,6 +23126,7 @@
   }
  ],
  "overrides_applied": [
-  "2020-02-28"
+  "2020-02-28",
+  "2020-06-30/2020-07-01 split"
  ]
 }

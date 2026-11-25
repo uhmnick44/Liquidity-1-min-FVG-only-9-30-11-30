@@ -47,5 +47,17 @@ The trader confirmed the FVG plays no part in this strategy's entry. (The reposi
     fill is that open (+ slippage).
 4.5 **Maximum stop size:** none in the base strategy. The stop distance is recorded on every trade; dollar risk is
     handled by position sizing (section 6).
-## 5. Take profit / exit — [OPEN]
+## 5. Take profit / exit — [APPROVED 2026-11-25]
+5.1 **Target:** exactly **0.5R**, where R = stop distance. Because the stop is 2 × |fill − E|, the target is
+    |fill − E| from the fill on the profit side. Integer ticks, always on grid.
+5.2 **Target fill:** a resting limit order. It counts as filled only when a candle trades **at least 1 tick
+    through** the target (long: high ≥ target + 1 tick; short: low ≤ target − 1 tick), at the target price.
+    Touch-fills are reported as sensitivity.
+5.3 **Same-candle ambiguity:** if one 1m candle reaches both the stop and the target-fill condition (including the
+    entry candle q+1), the **stop is assumed first**. Occurrences are counted.
+5.4 **Time exit:** a position still open at the RTH close (16:00 ET, or the reference early close, e.g. 13:00) is
+    closed at the open of that candle + 1 tick slippage.
+5.5 **Management:** none. No breakeven, partials or trailing stop.
+5.6 **Note:** a 1R-risk / 0.5R-reward structure breaks even at a 66.7% win rate before costs. Results are
+    reported by stop size and with/without costs.
 ## 6. Risk, sizing, limits, costs — [OPEN]

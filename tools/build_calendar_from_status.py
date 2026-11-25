@@ -154,7 +154,7 @@ def main(status_dir, out_cal, out_rep, cal_id="CME_GLBX_MNQ_from_status"):
     cal = {"calendar_id": cal_id, "version": f"status-{datetime.now(timezone.utc).strftime('%Y%m%d')}",
            "verified": False, "verified_by": None,
            "source": "CME matching-engine status messages via Databento GLBX.MDP3 status schema; "
-                     "scheduled transitions identical across all active MNQ outrights",
+                     "scheduled transitions identical across all active outrights",
            "sessions": sessions}
     Path(out_cal).write_text(json.dumps(cal, indent=1))
     rep = {"sessions": len(sessions), "problems": problems, "substituted_opens": substituted_opens,

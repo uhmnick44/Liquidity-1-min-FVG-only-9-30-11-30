@@ -207,5 +207,7 @@
    "in_expiration_cycle": true,
    "is_outright": true
   }
- ]
+ ],
+ "usd_per_point": "2",
+ "unit_of_measure": "IPNT"
 }

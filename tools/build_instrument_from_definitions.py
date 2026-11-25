@@ -28,13 +28,17 @@ def iso(ns):
     return datetime.fromtimestamp(ns / 1e9, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def main(def_dir, out, root, exch_cal, ref_cal):
-    contracts, months = [], set()
+def main(def_dir, out, root, exch_cal, ref_cal, cycle=None):
+    """cycle: optional comma-separated month codes in the approved expiration cycle (I3), e.g. 'G,J,M,Q,Z'."""
+    codes = "FGHJKMNQUVXZ"
+    cycle_months = None if not cycle else {codes.index(c) + 1 for c in cycle.split(",")}
+    contracts, months, uom = [], set(), set()
     for f in sorted(glob.glob(str(Path(def_dir) / "*.definition.*.dbn.zst"))):
         meta, recs = _read(f)
         sym = meta.symbols[0]
         if "-" in sym:
             continue
+        uom |= {(r.unit_of_measure_qty, str(r.unit_of_measure), r.currency) for r in recs}
         keys = {(r.instrument_id, r.expiration, r.activation, r.min_price_increment,
                  str(r.instrument_class), str(r.security_type), r.maturity_month) for r in recs}
         if len(keys) != 1:
@@ -44,18 +48,26 @@ def main(def_dir, out, root, exch_cal, ref_cal):
             continue
         months.add(mm)
         contracts.append({"symbol": sym, "instrument_id": iid, "expiration": iso(exp), "activation": iso(act),
-                          "tick_size": str(Decimal(mpi) / Decimal(10**9)), "in_expiration_cycle": True,
+                          "tick_size": str(Decimal(mpi) / Decimal(10**9)),
+                          "in_expiration_cycle": cycle_months is None or mm in cycle_months,
                           "is_outright": True})
     ticks = {c["tick_size"] for c in contracts}
     if len(ticks) != 1:
         raise SystemExit(f"contracts have different tick sizes: {ticks}")
+    if len(uom) != 1:
+        raise SystemExit(f"unit of measure differs across contracts: {uom}")
+    qty, unit, ccy = uom.pop()
+    if ccy != "USD":
+        raise SystemExit(f"currency {ccy}")
     cfg = {
         "root": root, "has_expirations": True, "tick_size": ticks.pop(),
+        "usd_per_point": str(Decimal(qty) / Decimal(10**9)), "unit_of_measure": unit,
+        "approved_cycle": cycle or "all listed months",
         "exchange_calendar_id": exch_cal, "reference_calendar_id": ref_cal,
         "nominal_pre_window_end": None,
         "verified": True,
         "verified_by": "Databento GLBX.MDP3 definition schema (exchange security definitions); "
-                       "cross-checked against 1m bars (all prices on grid, last bar 09:29 ET each expiry)",
+                       "cross-checked against 1m bars (all prices on grid; see data audit)",
         "sources": {"definitions": str(def_dir), "listed_months": sorted(months),
                     "built_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")},
         "contracts": sorted(contracts, key=lambda c: c["expiration"]),

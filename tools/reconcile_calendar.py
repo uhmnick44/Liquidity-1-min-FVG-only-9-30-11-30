@@ -35,6 +35,10 @@ def L(m):
 
 
 def main(cal_path, rep_path, out_halts, *bar_dirs):
+    bar_dirs = list(bar_dirs)
+    tick = Decimal("0.25")
+    if "--tick" in bar_dirs:
+        i = bar_dirs.index("--tick"); tick = Decimal(bar_dirs[i + 1]); del bar_dirs[i:i + 2]
     cal = ExchangeCalendar.load(cal_path)
     rep = json.loads(Path(rep_path).read_text())
     halts = {s: set() for s in rep["unscheduled_halts"]}
@@ -43,8 +47,8 @@ def main(cal_path, rep_path, out_halts, *bar_dirs):
             halts[s].update(range(h["full_minute_start"], h["full_minute_end"]))
     files = [f for d in bar_dirs for f in glob.glob(str(Path(d) / "*.ohlcv-1m.*.dbn.zst")) if "-" not in f.split(".")[-3]]
     syms = sorted({f.split(".")[-3] for f in files})
-    inst = InstrumentConfig("MNQ", True, Decimal("0.25"), "X", None,
-                            [Contract(s, None, 10**12, Decimal("0.25"), True) for s in syms])
+    inst = InstrumentConfig("X", True, tick, "X", None,
+                            [Contract(s, None, 10**12, tick, True) for s in syms])
     st = BarStore()
     for f in files:
         load_databento_dbn(f, inst, st)

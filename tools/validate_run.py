@@ -62,7 +62,7 @@ def load_bars(dirs):
         rows = sorted(set(rows))
         a = np.array(rows, dtype=np.int64)
         # prices in ticks (fixed-point 1e-9 / 0.25)
-        q = 250_000_000
+        q = int(TICK * 10**9)
         assert not (a[:, 1:] % q).any(), f"{sym}: off-grid price"
         out[sym] = {"m": a[:, 0], "h": a[:, 1] // q, "l": a[:, 2] // q, "c": a[:, 3] // q,
                     "idx": {int(x): i for i, x in enumerate(a[:, 0])}}
@@ -76,6 +76,10 @@ def ticks(price_str):
 
 
 def main(run_dir, cme_path, nyse_path, halts_path, *bar_dirs):
+    global TICK
+    bar_dirs = list(bar_dirs)
+    if "--tick" in bar_dirs:
+        i = bar_dirs.index("--tick"); TICK = Decimal(bar_dirs[i + 1]); del bar_dirs[i:i + 2]
     run = Path(run_dir)
     refs = {json.loads(l)["ref_id"]: json.loads(l) for l in open(run / "references.jsonl")}
     events = [json.loads(l) for l in open(run / "sweep_events.jsonl")]

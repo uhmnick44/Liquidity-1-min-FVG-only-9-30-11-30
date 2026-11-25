@@ -31,8 +31,11 @@ from liqengine.statistics import convert  # noqa: E402
 
 def main(out_dir, bar_dirs, stats_dir, *opts):
     t0 = time.time()
-    inst = InstrumentConfig.load(ROOT / "config/instruments/MNQ.json")
-    cme = ExchangeCalendar.load(ROOT / "config/calendars/CME_GLBX_MNQ.json")
+    opts = list(opts)
+    ip = opts[opts.index("--instrument") + 1] if "--instrument" in opts else ROOT / "config/instruments/MNQ.json"
+    cp = opts[opts.index("--calendar") + 1] if "--calendar" in opts else ROOT / "config/calendars/CME_GLBX_MNQ.json"
+    inst = InstrumentConfig.load(ip)
+    cme = ExchangeCalendar.load(cp)
     ny = ReferenceCalendar.load(ROOT / "config/calendars/NYSE.json")
     store = BarStore()
     for d in bar_dirs.split(","):
@@ -66,7 +69,8 @@ def main(out_dir, bar_dirs, stats_dir, *opts):
         evidence.halt_sources = [h["source"]]
         evidence.source += " + status-derived halts (N22, pending approval)"
     t1 = time.time()
-    res = run(inst, cme, ny, store, APPROVED_V12, cme.sessions[0].session_id, cme.sessions[-1].session_id,
+    s_from = opts[opts.index("--from-session") + 1] if "--from-session" in opts else cme.sessions[0].session_id
+    res = run(inst, cme, ny, store, APPROVED_V12, s_from, cme.sessions[-1].session_id,
               evidence=evidence, coarse=coarse, external_volumes=vols)
     t2 = time.time()
     eng = res.engine

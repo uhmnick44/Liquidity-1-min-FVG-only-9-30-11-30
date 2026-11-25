@@ -16,9 +16,17 @@ from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 NY = ZoneInfo("America/New_York")
+# Instrument economics. Defaults are MNQ (spec 6.1: definitions give unit_of_measure_qty = 2, IPNT, USD).
+# Call configure() with values from the instrument's definition-based config for any other instrument.
 TICK = Decimal("0.25")
-USD_PER_POINT = Decimal("2")          # spec 6.1 (definitions: unit_of_measure_qty = 2, IPNT, USD)
+USD_PER_POINT = Decimal("2")
 USD_PER_TICK = USD_PER_POINT * TICK   # $0.50
+
+
+def configure(tick: Decimal, usd_per_point: Decimal):
+    global TICK, USD_PER_POINT, USD_PER_TICK
+    TICK, USD_PER_POINT = Decimal(tick), Decimal(usd_per_point)
+    USD_PER_TICK = USD_PER_POINT * TICK
 
 
 def m_of(iso: str) -> int:
@@ -113,6 +121,7 @@ class Trade:
             "exit_time": iso(self.exit_minute), "exit": None if self.exit is None else str(self.exit * TICK),
             "reason": self.reason, "pnl_ticks": self.pnl_ticks, "r": round(self.r, 4),
             "pnl_usd_gross": str(self.pnl_ticks * USD_PER_TICK),
+            "tick": str(TICK),
             "ambiguous_bar": self.ambiguous_bar, "flags": self.flags,
         }
 

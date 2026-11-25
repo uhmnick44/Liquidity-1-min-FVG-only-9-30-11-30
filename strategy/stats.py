@@ -5,15 +5,16 @@ from __future__ import annotations
 from collections import defaultdict
 from decimal import Decimal
 
-from .backtest import USD_PER_TICK, local
+from . import backtest as bt
+from .backtest import local
 
 
 def summarize(trades, commission_rt: Decimal = Decimal(0)):
     n = len(trades)
     if not n:
         return {"trades": 0}
-    usd = [float(t.pnl_ticks * USD_PER_TICK - commission_rt) for t in trades]
-    r = [u / float(t.risk * USD_PER_TICK) for u, t in zip(usd, trades)]
+    usd = [float(t.pnl_ticks * bt.USD_PER_TICK - commission_rt) for t in trades]
+    r = [u / float(t.risk * bt.USD_PER_TICK) for u, t in zip(usd, trades)]
     wins = [x for x in usd if x > 0]
     losses = [x for x in usd if x <= 0]
     eq = peak = mdd = 0.0
@@ -61,4 +62,4 @@ def breakeven_commission(trades):
     """Round-trip commission (USD/contract) at which expectancy is zero."""
     if not trades:
         return None
-    return round(sum(float(t.pnl_ticks * USD_PER_TICK) for t in trades) / len(trades), 3)
+    return round(sum(float(t.pnl_ticks * bt.USD_PER_TICK) for t in trades) / len(trades), 3)

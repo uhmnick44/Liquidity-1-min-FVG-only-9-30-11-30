@@ -19,13 +19,14 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from liqengine.dbn import _read  # noqa: E402
 from strategy.backtest import NY, Bar, Market, Params, build_setups, local, m_of, simulate  # noqa: E402
-from strategy.backtest import USD_PER_TICK  # noqa: E402
+import strategy.backtest as bt  # noqa: E402
 from strategy.stats import breakdown, breakeven_commission, half_hour, risk_bucket, summarize  # noqa: E402
 
-Q = 250_000_000  # 0.25 in 1e-9 units
+Q = 250_000_000  # tick in 1e-9 units (set from the instrument config in main)
 
 
-def load_bars(dirs):
+def load_bars(dirs, q=None):
+    q = q or Q
     out = {}
     for d in dirs:
         for f in glob.glob(str(Path(d) / "*.ohlcv-1m.*.dbn.zst")):
@@ -35,12 +36,13 @@ def load_bars(dirs):
             _, recs = _read(f)
             rows = out.setdefault(sym, {})
             for r in recs:
-                rows[r.ts_event // 60_000_000_000] = Bar(r.ts_event // 60_000_000_000, r.open // Q, r.high // Q, r.low // Q, r.close // Q)
+                assert not (r.open % q or r.high % q or r.low % q or r.close % q), f"{sym}: off-grid price"
+                rows[r.ts_event // 60_000_000_000] = Bar(r.ts_event // 60_000_000_000, r.open // q, r.high // q, r.low // q, r.close // q)
     return {s: list(v.values()) for s, v in out.items()}
 
 
-def market(bars):
-    cme = json.load(open(ROOT / "config/calendars/CME_GLBX_MNQ.json"))
+def market(bars, cal_path=None):
+    cme = json.load(open(cal_path or ROOT / "config/calendars/CME_GLBX_MNQ.json"))
     ny = {d["date"]: d for d in json.load(open(ROOT / "config/calendars/NYSE.json"))["days"]}
     assert cme["verified"], "CME calendar not verified"
     segs, rth = [], {}
@@ -62,6 +64,20 @@ def main(run_dir, out_dir, *rest):
     s1 = s2 = None
     if "--s1" in args:
         i = args.index("--s1"); s1 = args[i + 1]; del args[i:i + 2]
+    inst_path, cal_path = ROOT / "config/instruments/MNQ.json", None
+    if "--instrument" in args:
+        i = args.index("--instrument"); inst_path = Path(args[i + 1]); del args[i:i + 2]
+    if "--calendar" in args:
+        i = args.index("--calendar"); cal_path = Path(args[i + 1]); del args[i:i + 2]
+    since = until = None
+    if "--from" in args:
+        i = args.index("--from"); since = date.fromisoformat(args[i + 1]); del args[i:i + 2]
+    if "--to" in args:
+        i = args.index("--to"); until = date.fromisoformat(args[i + 1]); del args[i:i + 2]
+    icfg = json.load(open(inst_path))
+    assert icfg["verified"], "instrument config not verified"
+    bt.configure(Decimal(icfg["tick_size"]), Decimal(icfg["usd_per_point"]))
+    q = int(Decimal(icfg["tick_size"]) * 10**9)
     variant = {}
     if "--stop-mult" in args:
         i = args.index("--stop-mult"); variant["stop_multiple"] = int(args[i + 1]); del args[i:i + 2]
@@ -73,7 +89,7 @@ def main(run_dir, out_dir, *rest):
     if "--s2" in args:
         i = args.index("--s2"); s2 = args[i + 1] == "yes"; del args[i:i + 2]
     events = [json.loads(l) for l in open(Path(run_dir) / "sweep_events.jsonl")]
-    mkt = market(load_bars(args))
+    mkt = market(load_bars(args, q), cal_path)
     out = Path(out_dir); out.mkdir(parents=True, exist_ok=True)
     results = {}
     kw = dict(trade_reference_closed_days=s2, opposite_same_candle=s1, **variant)
@@ -85,6 +101,9 @@ def main(run_dir, out_dir, *rest):
     for name, p in scenarios.items():
         setups = build_setups(events, mkt, p, log if name == "base" else [])
         trades, skipped = simulate(setups, mkt, p)
+        if since or until:
+            trades = [t for t in trades if (not since or local(t.entry_minute).date() >= since)
+                      and (not until or local(t.entry_minute).date() <= until)]
         res = {"setups": len(setups), "skipped": dict(Counter(r for _, r in skipped)),
                "gross": summarize(trades),
                "breakeven_commission_rt_usd": breakeven_commission(trades)}
@@ -94,7 +113,7 @@ def main(run_dir, out_dir, *rest):
             res["in_sample"] = {c: summarize(ins, Decimal(c)) for c in ("0", "0.50", "1.00", "1.50")}
             res["out_of_sample"] = {c: summarize(oos, Decimal(c)) for c in ("0", "0.50", "1.00", "1.50")}
             for part, ts in (("in_sample", ins), ("out_of_sample", oos)):
-                rs = [float(t.pnl_ticks * USD_PER_TICK - Decimal("1.00")) / float(t.risk * USD_PER_TICK) for t in ts]
+                rs = [float(t.pnl_ticks * bt.USD_PER_TICK - Decimal("1.00")) / float(t.risk * bt.USD_PER_TICK) for t in ts]
                 if len(rs) > 1:
                     mu = sum(rs) / len(rs)
                     se = (sum((x - mu) ** 2 for x in rs) / (len(rs) - 1)) ** 0.5 / len(rs) ** 0.5

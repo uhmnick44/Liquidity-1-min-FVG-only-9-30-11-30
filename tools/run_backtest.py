@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from liqengine.dbn import _read  # noqa: E402
 from strategy.backtest import NY, Bar, Market, Params, build_setups, local, m_of, simulate  # noqa: E402
+from strategy.backtest import USD_PER_TICK  # noqa: E402
 from strategy.stats import breakdown, breakeven_commission, half_hour, risk_bucket, summarize  # noqa: E402
 
 Q = 250_000_000  # 0.25 in 1e-9 units
@@ -61,17 +62,25 @@ def main(run_dir, out_dir, *rest):
     s1 = s2 = None
     if "--s1" in args:
         i = args.index("--s1"); s1 = args[i + 1]; del args[i:i + 2]
+    variant = {}
+    if "--stop-mult" in args:
+        i = args.index("--stop-mult"); variant["stop_multiple"] = int(args[i + 1]); del args[i:i + 2]
+    if "--target-r" in args:
+        i = args.index("--target-r"); variant["target_r"] = Decimal(args[i + 1]); del args[i:i + 2]
+    split = None
+    if "--split" in args:
+        i = args.index("--split"); split = date.fromisoformat(args[i + 1]); del args[i:i + 2]
     if "--s2" in args:
         i = args.index("--s2"); s2 = args[i + 1] == "yes"; del args[i:i + 2]
     events = [json.loads(l) for l in open(Path(run_dir) / "sweep_events.jsonl")]
     mkt = market(load_bars(args))
     out = Path(out_dir); out.mkdir(parents=True, exist_ok=True)
     results = {}
-    scenarios = {"base": Params(trade_reference_closed_days=s2, opposite_same_candle=s1)}
+    kw = dict(trade_reference_closed_days=s2, opposite_same_candle=s1, **variant)
+    scenarios = {"base": Params(**kw)}
     for slip in (0, 2):
-        scenarios[f"slippage_{slip}"] = Params(trade_reference_closed_days=s2, opposite_same_candle=s1,
-                                               entry_slippage=slip, stop_slippage=slip, exit_slippage=slip)
-    scenarios["target_touch_fill"] = Params(trade_reference_closed_days=s2, opposite_same_candle=s1, target_through_ticks=0)
+        scenarios[f"slippage_{slip}"] = Params(**kw, entry_slippage=slip, stop_slippage=slip, exit_slippage=slip)
+    scenarios["target_touch_fill"] = Params(**kw, target_through_ticks=0)
     log = []
     for name, p in scenarios.items():
         setups = build_setups(events, mkt, p, log if name == "base" else [])
@@ -79,6 +88,17 @@ def main(run_dir, out_dir, *rest):
         res = {"setups": len(setups), "skipped": dict(Counter(r for _, r in skipped)),
                "gross": summarize(trades),
                "breakeven_commission_rt_usd": breakeven_commission(trades)}
+        if split is not None:
+            ins = [t for t in trades if local(t.entry_minute).date() < split]
+            oos = [t for t in trades if local(t.entry_minute).date() >= split]
+            res["in_sample"] = {c: summarize(ins, Decimal(c)) for c in ("0", "0.50", "1.00", "1.50")}
+            res["out_of_sample"] = {c: summarize(oos, Decimal(c)) for c in ("0", "0.50", "1.00", "1.50")}
+            for part, ts in (("in_sample", ins), ("out_of_sample", oos)):
+                rs = [float(t.pnl_ticks * USD_PER_TICK - Decimal("1.00")) / float(t.risk * USD_PER_TICK) for t in ts]
+                if len(rs) > 1:
+                    mu = sum(rs) / len(rs)
+                    se = (sum((x - mu) ** 2 for x in rs) / (len(rs) - 1)) ** 0.5 / len(rs) ** 0.5
+                    res[part]["r_at_1usd_mean_se"] = [round(mu, 4), round(se, 4)]
         if name == "base":
             for c in ("0.50", "1.00", "1.50"):
                 res[f"net_commission_rt_{c}"] = summarize(trades, Decimal(c))

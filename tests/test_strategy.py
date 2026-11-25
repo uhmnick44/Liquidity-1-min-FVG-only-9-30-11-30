@@ -168,3 +168,21 @@ def test_reference_closed_day_requires_decision():
     bars = [Bar(q, 1000, 1001, 995, 1000)] + flat(q + 1, 50, 1006, 1)
     with pytest.raises(RuntimeError):
         run([ev("1", "SSL", 999, 990, q, q)], bars, p=Params(opposite_same_candle="SKIP"), rth_close=None)
+
+
+def test_v02_stop_at_extreme_1r_target():
+    from decimal import Decimal
+    q = et(10, 0)
+    bars = [Bar(q, 1000, 1001, 995, 1000), Bar(q + 1, 1004, 1005, 1003, 1004)] + flat(q + 2, 600, 1004, 1)
+    p = Params(trade_reference_closed_days=False, opposite_same_candle="SKIP", stop_multiple=1, target_r=Decimal(1))
+    (t,), _ = run([ev("1", "SSL", 999, 990, q, q)], bars, p=p)
+    assert t.stop == 990 and t.target == 1005 + 15 and t.risk == 15
+
+
+def test_fractional_target_rounds_toward_entry():
+    from decimal import Decimal
+    q = et(10, 0)
+    bars = [Bar(q, 1000, 1001, 995, 1000), Bar(q + 1, 996, 997, 995, 996)] + flat(q + 2, 600, 996, 1)
+    p = Params(trade_reference_closed_days=False, opposite_same_candle="SKIP", stop_multiple=1, target_r=Decimal("0.5"))
+    (t,), _ = run([ev("1", "SSL", 989, 990 - 0, q, q)], bars, p=p)   # fill 997, d = 7 -> 3.5 ticks -> 3
+    assert t.target == 997 + 3

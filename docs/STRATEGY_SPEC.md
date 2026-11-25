@@ -79,3 +79,20 @@ The trader confirmed the FVG plays no part in this strategy's entry. (The reposi
     this dataset; 4 setups skipped).
 7.2 **S1** (opposite-direction setups confirmed on the same candle) never occurs in 2022-10 → 2026-10. The code
     raises an error if it ever does, so no assumption is made silently.
+
+---
+
+# Variation v0.2 — [APPROVED 2026-11-25, PRE-REGISTERED before any v0.2 result was seen]
+Identical to v0.1 (sections 1–7) except:
+- **4.1' Stop:** stop **at E** (stop multiple 1). Long: stop = E; short: stop = E. R = d = |fill − E|.
+- **5.1' Target:** **1R**, i.e. target = fill ± d. If a future target multiple gives a fractional tick, the target
+  is **rounded toward the entry** (trader decision 2a). With 1R it is always a whole number of ticks.
+- Breakeven win rate before costs: 50%.
+
+**Evaluation protocol (pre-registered):**
+- **Design period (in-sample):** entries from 2022-10-14 through 2024-12-31.
+- **Test period (out-of-sample, deciding):** entries from 2025-01-01 through 2026-10-20.
+- **Pass criterion:** out-of-sample expectancy **> 0 after base slippage (1 tick) and $1.00 round-trip
+  commission** (illustrative). Results at $0.50 and $1.50 are also reported. A positive estimate within 2 standard
+  errors of zero is reported as **inconclusive**, not as an edge.
+- No parameter of v0.2 may be changed after the results are seen. Any change becomes v0.3, tested on new data.

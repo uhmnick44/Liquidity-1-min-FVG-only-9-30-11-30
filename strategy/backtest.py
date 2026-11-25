@@ -53,7 +53,8 @@ class Params:
     stop_slippage: int = 1           # ticks against the trade (4.4)
     exit_slippage: int = 1           # ticks, time exit (5.4)
     target_through_ticks: int = 1    # 5.2: price must trade this far through the target (0 = touch)
-    stop_multiple: int = 2           # 4.1
+    stop_multiple: int = 2           # 4.1 (v0.1: 2; v0.2: 1)
+    target_r: Decimal = Decimal("0.5")  # 5.1 target in R (v0.1: 0.5; v0.2: 1); fractional ticks rounded toward entry
     # Questions not settled by the approved spec (reported, see S-items):
     trade_reference_closed_days: bool | None = None       # S2
     opposite_same_candle: str | None = None               # S1: "SKIP"
@@ -234,8 +235,13 @@ def simulate(setups: list[Setup], mkt: Market, p: Params):
         if d <= 0:
             skipped.append((s, "FILL_AT_OR_BEYOND_EXTREME"))
             continue
-        stop = fill - p.stop_multiple * d if long else fill + p.stop_multiple * d
-        target = fill + d if long else fill - d     # 0.5R with R = 2d
+        risk = p.stop_multiple * d
+        tdist = int((p.target_r * risk).to_integral_value(rounding="ROUND_FLOOR"))  # toward entry (2a)
+        if tdist <= 0:
+            skipped.append((s, "TARGET_ROUNDS_TO_ZERO"))
+            continue
+        stop = fill - risk if long else fill + risk
+        target = fill + tdist if long else fill - tdist
         tr = Trade(s, "LONG" if long else "SHORT", eb.m, fill, stop, target, d)
         if eb.m != q + 1:
             tr.flags.append("ENTRY_BAR_NOT_IMMEDIATELY_NEXT_MINUTE")

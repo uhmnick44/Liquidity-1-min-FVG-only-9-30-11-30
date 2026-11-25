@@ -51,6 +51,20 @@ def minute_volume_for_session(store: BarStore, evidence: MinuteEvidence | None, 
     return SessionVolume(contract, session.session_id, total, session.end, "ohlcv-1m-sum")
 
 
+def traded_in(store: BarStore, symbol: str, session: ExchangeSession) -> bool:
+    b = store.bars.get(symbol, {})
+    return any(m in b for m in session.minutes())
+
+
+def last_common_minute(store: BarStore, a: str, b: str, session: ExchangeSession) -> int | None:
+    ba, bb = store.bars.get(a, {}), store.bars.get(b, {})
+    for seg_start, seg_end in reversed(session.segments):
+        for m in range(seg_end - 1, seg_start - 1, -1):
+            if m in ba and m in bb:
+                return m
+    return None
+
+
 class ContractSelector:
     def __init__(self, instrument: InstrumentConfig, current: str):
         if not instrument.has_expirations:
@@ -71,6 +85,11 @@ class ContractSelector:
                 out.append(c)
         return sorted(out, key=lambda c: (c.expiration, c.symbol))
 
+    def successors_for_session(self, session: ExchangeSession, at_minute: int, store: BarStore) -> list[Contract]:
+        """N34 (approved 2026-11-25): a successor with zero observed trades (no 1m bar) in the evaluated
+        session is not eligible for that session's decision."""
+        return [c for c in self._eligible_successors(at_minute) if traded_in(store, c.symbol, session)]
+
     def current_eligible_at(self, minute: int) -> bool:
         return self.instrument.contract(self.current).expiration > minute
 
@@ -84,7 +103,7 @@ class ContractSelector:
             if v.available_minute > decided_minute:
                 raise ValueError("volume figure not yet available (look-ahead)")
         cur_v = volumes.get(self.current)
-        succ = self._eligible_successors(decided_minute)
+        succ = self.successors_for_session(session, decided_minute, store)
         if not succ:
             return None
         if cur_v is None or cur_v.volume is None:
@@ -101,14 +120,20 @@ class ContractSelector:
         chosen = min(best, key=lambda c: (c.expiration, c.symbol))   # I10
         if not best_vol > cur_v.volume:
             return None
-        # A12.3: closes of the final scheduled 1-minute candle of the crossover session
-        ref_m = session.end - 1
-        b_old = store.get(self.current, ref_m)
-        b_new = store.get(chosen.symbol, ref_m)
+        # A12.3 as amended by N35 (approved 2026-11-25): closes of the latest 1-minute candle of the crossover
+        # session in which BOTH contracts printed a bar (synchronized). Equals the final scheduled candle
+        # whenever both traded in it.
+        ref_m = last_common_minute(store, self.current, chosen.symbol, session)
+        b_old = None if ref_m is None else store.get(self.current, ref_m)
+        b_new = None if ref_m is None else store.get(chosen.symbol, ref_m)
+        if ref_m is None:
+            ref_m = session.end - 1
         flags = []
         if len(best) > 1:
             flags.append("EQUAL_VOLUME_TIE_EARLIEST_EXPIRY")
         cur = self.instrument.contract(self.current)
+        if ref_m != session.end - 1 and b_old is not None:
+            flags.append("REFERENCE_MINUTE_BEFORE_FINAL_CANDLE")
         if b_old is None or b_new is None:
             flags.append("REFERENCE_PRICE_UNAVAILABLE")
             return RolloverDecision(decided_minute, session.session_id, self.current, chosen.symbol,

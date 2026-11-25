@@ -156,3 +156,35 @@ def test_n32_cleared_volume_below_bar_volume_rejected_then_revision_used():
     v = vols[("A", "2025-03-04")]
     assert v.volume == 500 and v.available_minute == BASE + 201
     assert rep.rejected_below_bar_volume[0]["cleared"] == 0
+
+
+# ---------------------------------------------------------------- N34 / N35 (approved 2026-11-25)
+def test_n34_untraded_successor_not_required():
+    from liqengine.rollover import ContractSelector, SessionVolume
+    from tests.test_rollover import calendar as cal_, contracts as cs_, fill as fill_, inst as inst_
+    s = cal_(1).sessions[0]
+    i = inst_(cs_(A=10**8, B=10**8 + 1000, C=10**8 + 2000))
+    st = BarStore()
+    fill_(st, "A", s, 1000, 1)
+    fill_(st, "B", s, 1040, 5)          # C never trades this session
+    sel = ContractSelector(i, "A")
+    v = {"A": SessionVolume("A", s.session_id, 10, s.end, "t"), "B": SessionVolume("B", s.session_id, 50, s.end, "t")}
+    d = sel.evaluate(s, v, st, None, s.end)
+    assert d is not None and d.to_contract == "B"
+
+
+def test_n35_reference_minute_is_last_common_trade():
+    from liqengine.rollover import ContractSelector, SessionVolume
+    from tests.test_rollover import calendar as cal_, contracts as cs_, inst as inst_
+    s = cal_(1).sessions[0]
+    i = inst_(cs_(A=10**8, B=10**8 + 1000))
+    st = BarStore()
+    for m in s.minutes():
+        st.add(Bar(m, 1000, 1000, 1000, 1000, 1, "B"))
+        if m < s.end - 3:                    # A stops trading 3 minutes before the end
+            st.add(Bar(m, 960, 960, 960, 960 if m != s.end - 4 else 962, 1, "A"))
+    sel = ContractSelector(i, "A")
+    v = {"A": SessionVolume("A", s.session_id, 10, s.end, "t"), "B": SessionVolume("B", s.session_id, 50, s.end, "t")}
+    d = sel.evaluate(s, v, st, None, s.end)
+    assert d.reference_minute == s.end - 4 and d.delta == GRID.to_price(1000) - GRID.to_price(962)
+    assert "REFERENCE_MINUTE_BEFORE_FINAL_CANDLE" in d.flags

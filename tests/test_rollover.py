@@ -88,10 +88,13 @@ def test_forward_only_older_contract_never_reselected():
 
 def test_unverified_volume_suspends_decision():
     i, s = sel_setup()
+    st0 = BarStore()
+    for sym in "ABC":
+        fill(st0, sym, s, 1000, 1)      # all trade, so all are eligible (N34)
     sel = ContractSelector(i, "A")
     v = {"A": vol("A", s.session_id, 10, s.end), "B": vol("B", s.session_id, None, s.end),
          "C": vol("C", s.session_id, 5, s.end)}
-    assert sel.evaluate(s, v, BarStore(), None, s.end) is None
+    assert sel.evaluate(s, v, st0, None, s.end) is None
     assert sel.uncertain[-1]["reason"] == "SUCCESSOR_VOLUME_UNVERIFIED"
 
 
@@ -119,7 +122,11 @@ def test_delta_from_final_scheduled_candle_closes(p_old, p_new):
 def test_missing_reference_price_gives_no_delta():
     i, s = sel_setup()
     st = BarStore()
-    fill(st, "A", s, 1000, 1)
+    mins = list(s.minutes())
+    for m in mins[: len(mins) // 2]:          # A and B never trade in the same minute (no common minute, I1)
+        st.add(Bar(m, 1000, 1000, 1000, 1000, 1, "A"))
+    for m in mins[len(mins) // 2:]:
+        st.add(Bar(m, 1040, 1040, 1040, 1040, 1, "B"))
     sel = ContractSelector(i, "A")
     v = {"A": vol("A", s.session_id, 10, s.end), "B": vol("B", s.session_id, 20, s.end),
          "C": vol("C", s.session_id, 0, s.end)}

@@ -13,14 +13,14 @@ from .engine import LiquidityEngine
 from .instrument import InstrumentConfig
 from .models import CoarseBar
 from .policies import InitialContract, PolicyConfig
-from .rollover import ContractSelector, RolloverDecision, SessionVolume, minute_volume_for_session
+from .rollover import ContractSelector, RolloverDecision, SessionVolume, minute_volume_for_session, traded_in
 
 
 class UnverifiedConfigurationError(RuntimeError):
     pass
 
 
-def _select_by_volume(instrument, volumes_for, session, decided, selector):
+def _select_by_volume(instrument, volumes_for, session, decided, selector, store=None):
     """N9(b): after a suspension, pick the highest verified completed-session
     volume among eligible successors (I3: outright, in cycle, later expiry than
     every replaced/current contract, listed, unexpired). Tie -> earliest expiry
@@ -29,7 +29,8 @@ def _select_by_volume(instrument, volumes_for, session, decided, selector):
     cands = [c for c in instrument.contracts
              if c.is_outright and c.in_expiration_cycle and c.expiration > floor and c.expiration > decided
              and (c.activation is None or c.activation <= session.start)
-             and c.symbol not in selector.replaced and c.symbol != selector.current]
+             and c.symbol not in selector.replaced and c.symbol != selector.current
+             and (store is None or traded_in(store, c.symbol, session))]   # N34
     if not cands:
         return None
     vols = volumes_for(session, [c.symbol for c in cands], decided)
@@ -127,7 +128,8 @@ def run(
                         break
                     decided, start_k = sessions[k + 1].end, k + 2
                 cands = [c for c in instrument.contracts if c.is_outright and c.in_expiration_cycle
-                         and c.expiration > decided and (c.activation is None or c.activation <= s.start)]
+                         and c.expiration > decided and (c.activation is None or c.activation <= s.start)
+                         and traded_in(store, c.symbol, s)]   # N34
                 vols = volumes_for(s, [c.symbol for c in cands], decided)
                 if cands and all(vols.get(c.symbol) and vols[c.symbol].volume is not None for c in cands):
                     best = max(vols[c.symbol].volume for c in cands)
@@ -168,7 +170,7 @@ def run(
         session after D (D+1) has ended is unverified and dropped (I2: retain)."""
         while unevaluated and pending is None:
             cs = unevaluated[0]
-            syms = [selector.current] + [c.symbol for c in selector._eligible_successors(now)]
+            syms = [selector.current] + [c.symbol for c in selector.successors_for_session(cs, now, store)]
             vols = volumes_for(cs, syms, now)
             if external_volumes is not None and len(vols) < len(syms):
                 if just_ended is not None and just_ended is not cs:
@@ -210,7 +212,7 @@ def run(
             if resume_to is None:
                 # N9(b): while suspended, evaluate each completed session (decision at its end,
                 # effective at the next session open)
-                pick = _select_by_volume(instrument, volumes_for, s, s.end, selector)
+                pick = _select_by_volume(instrument, volumes_for, s, s.end, selector, store)
                 result.selection_log.append({"session_id": s.session_id, "suspended": True, "resume_pick": pick})
                 if pick is not None:
                     resume_to = pick

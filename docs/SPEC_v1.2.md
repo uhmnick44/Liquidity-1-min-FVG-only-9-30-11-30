@@ -66,3 +66,10 @@ record that doesn't fit (ts_ref mismatch, unmapped, outside calendar) instead of
 
 Still pending: the trader's check of `docs/VERIFICATION_CHECKLIST.md` sections 1–6 (calendar dates, incl. the
 2026-06-19 / 2026-07-03 trade-date assignment). The calendar files stay `verified: false` until then.
+
+## Addendum 2026-11-25 (b) — rollover amendments approved for the gold test (apply to all instruments)
+
+| ID | Decision (now a rule) | Where |
+|---|---|---|
+| N34 | **I3 amended:** a successor contract with **zero observed trades (no 1m bar) in the evaluated session** is not eligible for that session's rollover decision. The same filter applies to N8 initial selection and N9 resume. Reason: MGC lists contracts ~2 years out, and the exchange often publishes no cleared volume for untraded contracts; under the original I3, 949 of 1,733 gold sessions could never be decided. | `rollover.successors_for_session`, `driver` |
+| N35 | **A12.3 amended:** the roll reference prices are the closes of the **latest 1-minute candle of the crossover session in which both contracts printed a bar** (synchronized). This equals the final scheduled candle whenever both traded in it (all 16 MNQ rolls). If no common minute exists, I1 applies. Flag `REFERENCE_MINUTE_BEFORE_FINAL_CANDLE` when earlier. | `rollover.last_common_minute` |

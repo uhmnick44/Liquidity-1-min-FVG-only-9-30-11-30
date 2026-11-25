@@ -46,7 +46,7 @@ In each case the halted day's trading belongs to the **next** trade date. For ex
 | 2025-11-27 21:44:27 → 2025-11-28 08:00, then scheduled pre-open to 08:30 | 21:45 → 08:29 |
 
 - [ ] Halts above match CME notices / your records
-- [ ] **Decision (N22):** may CME's own halt messages count as the "official exchange notice"?
+- [x] **Decision (N22): APPROVED 2026-11-25 (yes).** may CME's own halt messages count as the "official exchange notice"?
   - **Yes:** these minutes are treated as closures, so liquidity is not quarantined.
   - **No:** they stay missing data, and all active liquidity is quarantined at each one.
 
@@ -67,11 +67,11 @@ Every other weekday is 09:30–16:00.
 
 ## Section 7 — Two new rule questions found while wiring the statistics data
 
-- [ ] **N32: reject impossible cleared-volume figures.**
+- [x] **N32: APPROVED 2026-11-25 (yes). Reject impossible cleared-volume figures.**
   - **Problem:** on 3 trade dates (2025-06-05, 2025-07-04, 2025-08-25) Databento's first cleared-volume figure is **0** although the contracts traded (up to 1.6M contracts).
   - **Proposed rule:** a figure below the volume visible in the 1-minute bars is rejected. Cleared volume includes block trades, so it can only be equal or larger. The first figure that passes is used, from the time it was published.
   - Recommendation: **Yes.**
-- [ ] **N33: publication deadline.**
+- [x] **N33: APPROVED 2026-11-25 (yes). Publication deadline.**
   - **Problem:** cleared volume for session D is published during trade date D+1, and some far-dated contracts get no figure at all.
   - **Proposed rule:** if any required figure is still missing at the end of session D+1, the rollover decision for session D is unverified (I2: keep the current contract).
   - Recommendation: **Yes.**

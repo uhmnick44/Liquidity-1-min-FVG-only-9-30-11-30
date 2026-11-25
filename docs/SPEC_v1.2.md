@@ -55,3 +55,14 @@ None that change behaviour. One mapping detail is **unverified until statistics 
 session a cleared-volume or session-high/low record refers to. The rules above follow the documented wording
 ("previous trading date"; "during the trading session") and are causal. `statistics.convert` reports any
 record that doesn't fit (ts_ref mismatch, unmapped, outside calendar) instead of guessing.
+
+## Addendum 2026-11-25 — further decisions approved by the trader ("I say yes")
+
+| ID | Decision (now a rule) | Where |
+|---|---|---|
+| N22 (clarified) | CME's own halt/pause messages (Databento `status`, non-scheduled reason) **count as the official exchange notice**. Whole minutes inside such a halt are `VERIFIED_HALT` and treated as a closure (no quarantine). | `tools/build_calendar_from_status.py` → `config/evidence/MNQ_status_halts.json` |
+| N32 | A cleared-volume figure **below the volume visible in that contract's 1m bars** for the session is rejected as inconsistent. The first-received figure that passes is used from its own receipt time; later differing figures are reported, never applied. | `statistics.convert(bar_volume=…)` |
+| N33 | If any figure required for a rollover decision on session D is **not published by the end of session D+1**, the decision for D is unverified and dropped (I2: retain current contract). The same timing applies to the N8 initial-contract decision when published figures are used. | `driver.run` (`decide`, initial selection) |
+
+Still pending: the trader's check of `docs/VERIFICATION_CHECKLIST.md` sections 1–6 (calendar dates, incl. the
+2026-06-19 / 2026-07-03 trade-date assignment). The calendar files stay `verified: false` until then.

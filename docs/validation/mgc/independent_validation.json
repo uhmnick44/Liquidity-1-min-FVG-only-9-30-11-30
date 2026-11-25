@@ -1,0 +1,78 @@
+{
+ "counts": {
+  "events_checked": 60164,
+  "invalidations_checked": 33325,
+  "dual_sided": 254,
+  "consumed_refs": 60164,
+  "incomplete_windows_skipped": 5746,
+  "swings_recomputed": 55283,
+  "swings_engine": 55283,
+  "windows_recomputed": 10390,
+  "windows_engine_complete": 4644,
+  "windows_recomputed_not_in_engine": 5746
+ },
+ "failures": {},
+ "failure_counts": {},
+ "windows_not_in_engine_sample": [
+  [
+   "EXCHANGE_SESSION",
+   "2020-01-06",
+   "BSL",
+   15912
+  ],
+  [
+   "EXCHANGE_SESSION",
+   "2020-01-06",
+   "SSL",
+   15605
+  ],
+  [
+   "EXCHANGE_SESSION",
+   "2020-01-07",
+   "BSL",
+   15791
+  ],
+  [
+   "EXCHANGE_SESSION",
+   "2020-01-07",
+   "SSL",
+   15571
+  ],
+  [
+   "EXCHANGE_SESSION",
+   "2020-01-08",
+   "BSL",
+   16135
+  ],
+  [
+   "EXCHANGE_SESSION",
+   "2020-01-08",
+   "SSL",
+   15535
+  ],
+  [
+   "EXCHANGE_SESSION",
+   "2020-01-09",
+   "BSL",
+   15625
+  ],
+  [
+   "EXCHANGE_SESSION",
+   "2020-01-09",
+   "SSL",
+   15411
+  ],
+  [
+   "EXCHANGE_SESSION",
+   "2020-01-10",
+   "BSL",
+   15642
+  ],
+  [
+   "EXCHANGE_SESSION",
+   "2020-01-10",
+   "SSL",
+   15467
+  ]
+ ]
+}

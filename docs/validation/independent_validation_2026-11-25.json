@@ -1,0 +1,78 @@
+{
+ "counts": {
+  "events_checked": 40613,
+  "invalidations_checked": 28161,
+  "dual_sided": 300,
+  "consumed_refs": 40613,
+  "incomplete_windows_skipped": 16,
+  "swings_recomputed": 40490,
+  "swings_engine": 40490,
+  "windows_recomputed": 6042,
+  "windows_engine_complete": 6026,
+  "windows_recomputed_not_in_engine": 16
+ },
+ "failures": {},
+ "failure_counts": {},
+ "windows_not_in_engine_sample": [
+  [
+   "EXCHANGE_SESSION",
+   "2023-07-05",
+   "BSL",
+   61727
+  ],
+  [
+   "EXCHANGE_SESSION",
+   "2023-07-05",
+   "SSL",
+   61021
+  ],
+  [
+   "EXCHANGE_SESSION",
+   "2023-12-13",
+   "BSL",
+   66378
+  ],
+  [
+   "EXCHANGE_SESSION",
+   "2023-12-13",
+   "SSL",
+   65461
+  ],
+  [
+   "EXCHANGE_SESSION",
+   "2024-12-18",
+   "BSL",
+   88334
+  ],
+  [
+   "EXCHANGE_SESSION",
+   "2024-12-18",
+   "SSL",
+   84129
+  ],
+  [
+   "EXCHANGE_SESSION",
+   "2025-09-17",
+   "BSL",
+   97252
+  ],
+  [
+   "EXCHANGE_SESSION",
+   "2025-09-17",
+   "SSL",
+   96014
+  ],
+  [
+   "PRE_WINDOW",
+   "2023-07-05",
+   "BSL",
+   61499
+  ],
+  [
+   "PRE_WINDOW",
+   "2023-07-05",
+   "SSL",
+   61021
+  ]
+ ]
+}

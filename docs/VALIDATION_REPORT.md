@@ -1,4 +1,4 @@
-# Validation Report — liquidity engine v0.1.0 against spec v1.1
+# Validation Report — liquidity engine against spec v1.2
 
 Date: 2026-11-24. Environment: Python 3.13.18, pytest 9.1.1, pyarrow 26.0.1, Linux.
 
@@ -52,3 +52,71 @@ All tests use **synthetic** data. No real market data has been processed (see Li
 3. **MNQ contract metadata is unverified.** CME's site blocks automated access, so it needs manual verification or Databento definitions.
 4. **Open items N1–N21** in `SPEC_v1.1.md` are unresolved. A real run will stop at the first one it hits. In particular, without an N12 decision every vendor-omitted minute is `UNCERTAIN`, which quarantines all active liquidity.
 5. The tests are hand-built boundary cases. They show the code matches the written definitions. They say nothing about the edge of any strategy, and no performance testing has been done (spec Part VI).
+
+
+---
+
+# Real-data validation — 2026-11-25 (spec v1.2, all approvals incl. N22/N32/N33)
+
+**Data:** Databento GLBX.MDP3 MNQ.FUT (ohlcv-1m, definition, statistics, status), 2022-10-01 → 2026-10-21.
+**Configuration:** `config/instruments/MNQ.json`, `config/calendars/CME_GLBX_MNQ.json` and `config/calendars/NYSE.json`, all
+verified and signed off by the trader. Halt evidence: `config/evidence/MNQ_status_halts.json` (N22). Policies:
+`APPROVED_V12`. No driver overrides.
+
+Command: `python tools/run_engine.py OUT bars_a,bars_b statistics --status-halts config/evidence/MNQ_status_halts.json`
+
+## 1. Run completed
+
+| | |
+|---|---|
+| Sessions processed | 1,022 (first decision 2022-10-14 per N8/N33) |
+| Rollovers | 16, all on the session where the highest-volume contract changed; effective 2 sessions later (published cleared volume, N13b) |
+| Suspensions / unauthorized-policy stops | 0 / 0 |
+| Liquidity references | 40,914 (SWING_15M 40,490 · EXCHANGE_SESSION 2,022 · RTH 2,010 · PRE_WINDOW 2,010 source labels) |
+| Sweep events | 40,613: 28,745 confirmed, 11,868 rejected (11,545 no confirmation, 300 dual-sided, 14 scheduled closure, 9 CME halt) |
+| Invalidations | 28,161 three-close, 163 data gap |
+| Expired at rollover | 404 |
+| Levels still quarantined at end | 0 (481 reinstated by venue session-high/low evidence) |
+| Missing-data events | 5 (2 thin overnight minutes; 3 on the old contract during the roll-confirmation lag) |
+| Run time | ~100 s engine, ~35 s loading |
+
+## 2. Determinism — PASSED
+Two independent runs produced **byte-identical** outputs (SHA-256):
+```
+references.jsonl     2d136db67e19aa94df85a62cd93f32fb0eefcdc71140857f2bce272d26b9517d
+sweep_events.jsonl   a75389073397eedef9d7c05cd3f79ddc1d8020b88bd5fbb690d27f702a7127d2
+lifecycle_log.jsonl  501c84304297e41ede00355c951ec39c074684e0ddf99989ae70351f23c728c4
+data_quality.jsonl   027fdc612797fb5f9e747e97c30c0b6c456ce27467eae8ddd7dd1d6d64acd2c0
+```
+CSV exports and provenance were identical as well.
+
+## 3. Independent re-derivation from raw bars — PASSED (0 mismatches)
+`tools/validate_run.py` does not use the engine's code. It recomputes from the DBN bars, the calendars and the written rules.
+
+| Check | Checked | Mismatches |
+|---|---|---|
+| A Penetration H ≥ P+tick / L ≤ P−tick | 40,613 | 0 |
+| B No test before availability (no look-ahead) | 40,613 | 0 |
+| C Confirmation in clock minutes t..t+3, same segment, strict close; correct rejection reason | 40,313 | 0 |
+| D Frozen extreme E = max H / min L over t..q | 28,745 | 0 |
+| E Three-close invalidation at the first triple after q (resets per N4/N5/N22) | 28,161 | 0 |
+| F One consuming event per consumed level | 40,613 | 0 |
+| G Consumption = first penetration since availability / rollover translation | 40,613 | 0 |
+| H 15m fractal swings (strict, complete uninterrupted candles) | 40,490 | 0 |
+| I Session / RTH / pre-window extremes (complete windows) | 6,026 | 0 |
+
+The 16 windows recomputed but not registered as complete are exactly the 16 windows with missing minutes. The engine registered those as quarantined (N3).
+
+Full outputs: `docs/validation/run_summary_2026-11-25.json`, `docs/validation/independent_validation_2026-11-25.json`,
+`docs/validation/provenance_2026-11-25.json`.
+
+## 4. Not covered by the real-data checker (covered by unit tests only)
+Quarantine and coarse-evidence reinstatement, N9 resume, I1/I5 rollover failures, dual-sided policy with quarantined
+levels, and zero-trade handling. None of the cases in the second group (N9 resume, I1/I5, quarantined dual-sided,
+zero-trade) occurred in this dataset. The strategy-layer eligibility (09:30–11:30) is unit-tested and was not exercised here.
+
+## 5. Status
+The liquidity engine has **passed validation** on this dataset. Per the spec (Part VI), no strategy, entry, stop,
+target or profitability testing has been done. Those need your strategy specification.
+
+The event counts above are descriptive engine output. They are **not evidence of any trading edge**.

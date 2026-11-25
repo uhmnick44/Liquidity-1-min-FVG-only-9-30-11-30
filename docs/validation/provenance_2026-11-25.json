@@ -1,0 +1,20 @@
+{
+  "RUN": "VALIDATION",
+  "configuration_problems": [],
+  "end": "2026-10-20",
+  "evidence_source": "none (N12: no zero-trade evidence) + status-derived halts (N22, pending approval)",
+  "exchange_calendar": "CME_GLBX_MNQ_from_status@status-20261125",
+  "instrument": "MNQ",
+  "policies": {
+    "counter_across_closure": "RESET",
+    "counter_across_zero_trade": "RESET",
+    "dual_sided_includes_quarantined": true,
+    "exchange_session_unit": "TRADE_DATE",
+    "incomplete_window_liquidity": "QUARANTINE",
+    "initial_contract": "HIGHEST_VERIFIED_VOLUME",
+    "pre_window_when_reference_closed": "DO_NOT_GENERATE",
+    "quarantine_collision": "SEPARATE"
+  },
+  "reference_calendar": "NYSE@draft-pmc5.6.1+exchange_calendars",
+  "start": "2022-10-03"
+}

@@ -33,21 +33,31 @@ def main(def_dir, out, root, exch_cal, ref_cal, cycle=None):
     codes = "FGHJKMNQUVXZ"
     cycle_months = None if not cycle else {codes.index(c) + 1 for c in cycle.split(",")}
     contracts, months, uom = [], set(), set()
+    by_id = {}
     for f in sorted(glob.glob(str(Path(def_dir) / "*.definition.*.dbn.zst"))):
         meta, recs = _read(f)
         sym = meta.symbols[0]
         if "-" in sym:
             continue
-        uom |= {(r.unit_of_measure_qty, str(r.unit_of_measure), r.currency) for r in recs}
-        keys = {(r.instrument_id, r.expiration, r.activation, r.min_price_increment,
-                 str(r.instrument_class), str(r.security_type), r.maturity_month) for r in recs}
+        for r in recs:
+            uom.add((r.unit_of_measure_qty, str(r.unit_of_measure), r.currency))
+            by_id.setdefault(r.instrument_id, set()).add(
+                (sym, r.expiration, r.activation, r.min_price_increment, str(r.instrument_class),
+                 str(r.security_type), r.maturity_year, r.maturity_month))
+    raw_count = {}
+    for iid, keys in by_id.items():
         if len(keys) != 1:
-            raise SystemExit(f"{sym}: definition fields change over time: {keys}")
-        iid, exp, act, mpi, cls, sec, mm = keys.pop()
+            raise SystemExit(f"instrument_id {iid}: definition fields change over time: {keys}")
+        raw_count[next(iter(keys))[0]] = raw_count.get(next(iter(keys))[0], 0) + 1
+    for iid, keys in sorted(by_id.items()):
+        sym, exp, act, mpi, cls, sec, my, mm = next(iter(keys))
         if (cls, sec) != ("F", "FUT"):
             continue
         months.add(mm)
-        contracts.append({"symbol": sym, "instrument_id": iid, "expiration": iso(exp), "activation": iso(act),
+        # Exchange symbols reuse a one-digit year (e.g. MGCG7 = 2017 and 2027): make them unique.
+        key = f"{sym}_{my}" if raw_count[sym] > 1 else sym
+        contracts.append({"symbol": key, "raw_symbol": sym, "instrument_id": iid, "expiration": iso(exp),
+                          "activation": iso(act), "maturity": f"{my}-{mm:02d}",
                           "tick_size": str(Decimal(mpi) / Decimal(10**9)),
                           "in_expiration_cycle": cycle_months is None or mm in cycle_months,
                           "is_outright": True})

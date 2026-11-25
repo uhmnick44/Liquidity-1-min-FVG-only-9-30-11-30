@@ -83,11 +83,14 @@ def replay_rollover(instrument, cal, vols, st):
 
 
 def main(stats_dir, cal_path, out, *bar_dirs):
+    bar_dirs = list(bar_dirs)
+    inst_path = Path(__file__).resolve().parents[1] / "config/instruments/MNQ.json"
+    if "--instrument" in bar_dirs:
+        i = bar_dirs.index("--instrument"); inst_path = Path(bar_dirs[i + 1]); del bar_dirs[i:i + 2]
     cal = ExchangeCalendar.load(cal_path)
     files = [f for f in glob.glob(str(Path(stats_dir) / "*.statistics.*.dbn.zst")) if "-" not in f.split(".")[-3]]
     syms = sorted({f.split(".")[-3] for f in files})
-    inst = InstrumentConfig("MNQ", True, Decimal("0.25"), cal.calendar_id, None,
-                            [Contract(s, None, 10**12, Decimal("0.25"), True) for s in syms])
+    inst = InstrumentConfig.load(inst_path)
     recs, maps = [], {}
     for f in files:
         meta, rs = _read(f)
@@ -97,6 +100,9 @@ def main(stats_dir, cal_path, out, *bar_dirs):
             recs.append((sym, r))
 
     def symbol_of(iid, d):
+        c = inst.contract_by_instrument_id(iid)
+        if c is not None:
+            return c.symbol if c.is_outright else None
         for sym, mp in maps.items():
             if check_mapping(mp, iid, d) in ("ok", "ok_end_inclusive"):
                 return sym
@@ -105,8 +111,7 @@ def main(stats_dir, cal_path, out, *bar_dirs):
     # bars
     bfiles = [f for d in bar_dirs for f in glob.glob(str(Path(d) / "*.ohlcv-1m.*.dbn.zst")) if "-" not in f.split(".")[-3]]
     st = BarStore()
-    binst = InstrumentConfig("MNQ", True, Decimal("0.25"), "X", None,
-                             [Contract(s, None, 10**12, Decimal("0.25"), True) for s in sorted({f.split(".")[-3] for f in bfiles})])
+    binst = inst
     for f in bfiles:
         load_databento_dbn(f, binst, st)
     def bar_volume(sym, session):
@@ -137,7 +142,7 @@ def main(stats_dir, cal_path, out, *bar_dirs):
         obs = [b[m] for m in range(c.start_minute, c.end_minute) if m in b]
         if not obs:
             continue
-        g = Decimal("0.25")
+        g = inst.tick_size
         if c.high is not None and c.high < max(x.high for x in obs) * g:
             bad += 1
         if c.low is not None and c.low > min(x.low for x in obs) * g:
@@ -149,8 +154,7 @@ def main(stats_dir, cal_path, out, *bar_dirs):
             if (sym, s.session_id) not in vols and any(m in st.bars[sym] for m in s.minutes()):
                 no_vol[sym] += 1
     from liqengine.instrument import InstrumentConfig as IC
-    mnq = IC.load(str(Path(__file__).resolve().parents[1] / "config/instruments/MNQ.json"))
-    roll_log = replay_rollover(mnq, cal, vols, st)
+    roll_log = replay_rollover(IC.load(str(inst_path)), cal, vols, st)
     report = {
         "records": len(recs), "contracts": syms, "rollover_replay": roll_log,
         "convert": {"used_volume": rep.used_volume, "used_extremes": rep.used_extremes,

@@ -47,7 +47,7 @@ def m_of(iso):
     return int(datetime.fromisoformat(iso.replace("Z", "+00:00")).timestamp()) // 60
 
 
-def load_bars(dirs):
+def load_bars(dirs, id_map=None):
     per = defaultdict(list)
     for d in dirs:
         for f in glob.glob(str(Path(d) / "*.ohlcv-1m.*.dbn.zst")):
@@ -56,7 +56,9 @@ def load_bars(dirs):
                 continue
             _, recs = _read(f)
             for r in recs:
-                per[sym].append((r.ts_event // 60_000_000_000, r.high, r.low, r.close))
+                key = id_map.get(r.instrument_id) if id_map else sym
+                if key is not None:
+                    per[key].append((r.ts_event // 60_000_000_000, r.high, r.low, r.close))
     out = {}
     for sym, rows in per.items():
         rows = sorted(set(rows))
@@ -80,6 +82,12 @@ def main(run_dir, cme_path, nyse_path, halts_path, *bar_dirs):
     bar_dirs = list(bar_dirs)
     if "--tick" in bar_dirs:
         i = bar_dirs.index("--tick"); TICK = Decimal(bar_dirs[i + 1]); del bar_dirs[i:i + 2]
+    id_map = None
+    if "--instrument" in bar_dirs:
+        i = bar_dirs.index("--instrument")
+        cfg = json.load(open(bar_dirs[i + 1])); del bar_dirs[i:i + 2]
+        TICK = Decimal(cfg["tick_size"])
+        id_map = {c["instrument_id"]: c["symbol"] for c in cfg["contracts"]}
     run = Path(run_dir)
     refs = {json.loads(l)["ref_id"]: json.loads(l) for l in open(run / "references.jsonl")}
     events = [json.loads(l) for l in open(run / "sweep_events.jsonl")]
@@ -87,7 +95,7 @@ def main(run_dir, cme_path, nyse_path, halts_path, *bar_dirs):
     cme = json.load(open(cme_path))
     nyse = json.load(open(nyse_path))
     halts = {k: set(v) for k, v in json.load(open(halts_path))["verified_halts"].items()}
-    bars = load_bars(bar_dirs)
+    bars = load_bars(bar_dirs, id_map)
     segs = sorted((m_of(a), m_of(b), s["session_id"]) for s in cme["sessions"] for a, b in s["segments"])
     seg_starts = [s[0] for s in segs]
 

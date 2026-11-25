@@ -25,7 +25,8 @@ from strategy.stats import breakdown, breakeven_commission, half_hour, risk_buck
 Q = 250_000_000  # tick in 1e-9 units (set from the instrument config in main)
 
 
-def load_bars(dirs, q=None):
+def load_bars(dirs, q=None, id_map=None):
+    """id_map: instrument_id -> contract key (symbols can repeat across decades)."""
     q = q or Q
     out = {}
     for d in dirs:
@@ -34,8 +35,11 @@ def load_bars(dirs, q=None):
             if "-" in sym:
                 continue
             _, recs = _read(f)
-            rows = out.setdefault(sym, {})
             for r in recs:
+                key = id_map.get(r.instrument_id) if id_map else sym
+                if key is None:
+                    continue
+                rows = out.setdefault(key, {})
                 assert not (r.open % q or r.high % q or r.low % q or r.close % q), f"{sym}: off-grid price"
                 rows[r.ts_event // 60_000_000_000] = Bar(r.ts_event // 60_000_000_000, r.open // q, r.high // q, r.low // q, r.close // q)
     return {s: list(v.values()) for s, v in out.items()}
@@ -89,7 +93,8 @@ def main(run_dir, out_dir, *rest):
     if "--s2" in args:
         i = args.index("--s2"); s2 = args[i + 1] == "yes"; del args[i:i + 2]
     events = [json.loads(l) for l in open(Path(run_dir) / "sweep_events.jsonl")]
-    mkt = market(load_bars(args, q), cal_path)
+    id_map = {c["instrument_id"]: c["symbol"] for c in icfg["contracts"] if c.get("instrument_id") is not None}
+    mkt = market(load_bars(args, q, id_map), cal_path)
     out = Path(out_dir); out.mkdir(parents=True, exist_ok=True)
     results = {}
     kw = dict(trade_reference_closed_days=s2, opposite_same_candle=s1, **variant)

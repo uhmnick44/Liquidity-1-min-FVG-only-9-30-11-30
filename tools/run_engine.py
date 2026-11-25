@@ -52,6 +52,9 @@ def main(out_dir, bar_dirs, stats_dir, *opts):
         recs += rs
 
     def symbol_of(iid, d):
+        c = inst.contract_by_instrument_id(iid)
+        if c is not None:
+            return c.symbol if c.is_outright else None
         for sym, mp in maps.items():
             if check_mapping(mp, iid, d) in ("ok", "ok_end_inclusive"):
                 return sym
@@ -71,14 +74,15 @@ def main(out_dir, bar_dirs, stats_dir, *opts):
     t1 = time.time()
     s_from = opts[opts.index("--from-session") + 1] if "--from-session" in opts else cme.sessions[0].session_id
     res = run(inst, cme, ny, store, APPROVED_V12, s_from, cme.sessions[-1].session_id,
-              evidence=evidence, coarse=coarse, external_volumes=vols)
+              evidence=evidence, coarse=coarse, external_volumes=vols,
+              _allow_unverified_for_tests="--preflight" in opts)
     t2 = time.time()
     eng = res.engine
-    res.provenance["RUN"] = "VALIDATION"
+    res.provenance["RUN"] = "PRE-FLIGHT (unverified calendars allowed)" if "--preflight" in opts else "VALIDATION"
     write_outputs(eng, out_dir, res.provenance)
     ev = list(eng.events.values())
     summary = {
-        "RUN": "VALIDATION", "load_s": round(t1 - t0, 1), "run_s": round(t2 - t1, 1),
+        "RUN": "PRE-FLIGHT" if "--preflight" in opts else "VALIDATION", "load_s": round(t1 - t0, 1), "run_s": round(t2 - t1, 1),
         "sessions": len(cme.sessions), "final_contract": eng.contract, "suspended": eng.suspended,
         "rollovers": [{"minute": x["minute"], "old": x["old"], "new": x["new"], "delta": x["delta"]}
                       for x in eng.log if x["event"] == "ROLLOVER"],

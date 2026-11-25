@@ -71,21 +71,25 @@ def load_databento_dbn(path: str | Path, instrument: InstrumentConfig, store: Ba
     sym = meta.symbols[0]
     rep.symbol = sym
     rep.mappings = [dict(m) for m in meta.mappings.get(sym, [])]
-    try:
-        contract = instrument.contract(sym)
-    except KeyError:
-        rep.excluded_reason = "SYMBOL_NOT_IN_INSTRUMENT_CONFIG"
-        rep.rows = len(recs)
-        return store, rep
-    if not contract.is_outright:
-        rep.excluded_reason = "NOT_OUTRIGHT"
-        rep.rows = len(recs)
-        return store, rep
-    if allowed_symbols is not None and sym not in allowed_symbols:
-        rep.excluded_reason = "NOT_REQUESTED"
-        return store, rep
-    g = contract.grid
-    prev = None
+    # Contract resolution. Exchange symbols can repeat across decades (one-digit year, e.g. MGCG7 = 2017 and 2027),
+    # so a record is attributed by its instrument_id when the configuration lists ids. The file symbol is used only
+    # for configurations without ids.
+    by_id = {c.instrument_id: c for c in instrument.contracts if c.instrument_id is not None}
+    if not by_id:
+        try:
+            fixed = instrument.contract(sym)
+        except KeyError:
+            rep.excluded_reason = "SYMBOL_NOT_IN_INSTRUMENT_CONFIG"
+            rep.rows = len(recs)
+            return store, rep
+        if not fixed.is_outright:
+            rep.excluded_reason = "NOT_OUTRIGHT"
+            rep.rows = len(recs)
+            return store, rep
+        if allowed_symbols is not None and sym not in allowed_symbols:
+            rep.excluded_reason = "NOT_REQUESTED"
+            return store, rep
+    prev = {}
     pending = []
     for r in recs:
         rep.rows += 1
@@ -98,27 +102,39 @@ def load_databento_dbn(path: str | Path, instrument: InstrumentConfig, store: Ba
             raise DataIntegrityError(f"{path}: instrument_id {r.instrument_id} not mapped to {sym} on {d}")
         if chk == "ok_end_inclusive":
             rep.mapping_end_inclusive_hits += 1
+        if by_id:
+            contract = by_id.get(r.instrument_id)
+            if contract is None or not contract.is_outright:
+                rep.unknown_instrument_ids[r.instrument_id] = rep.unknown_instrument_ids.get(r.instrument_id, 0) + 1
+                continue
+            if allowed_symbols is not None and contract.symbol not in allowed_symbols:
+                continue
+        else:
+            contract = fixed
+        key = contract.symbol
         try:
-            o, h, lo, c = (g.to_ticks(fixed_point_to_decimal(x)) for x in (r.open, r.high, r.low, r.close))
+            o, h, lo, c = (contract.grid.to_ticks(fixed_point_to_decimal(x)) for x in (r.open, r.high, r.low, r.close))
         except OffGridError as exc:
             raise DataIntegrityError(f"{path} minute {m}: {exc}") from exc
         if not (lo <= o <= h and lo <= c <= h):
             raise DataIntegrityError(f"{path} minute {m}: inconsistent OHLC")
         if r.volume <= 0:
             raise DataIntegrityError(f"{path} minute {m}: non-positive volume on printed bar")
-        if prev is not None and m <= prev:
-            if m == prev:
-                raise DataIntegrityError(f"{path}: duplicate minute {m}")
+        pm = prev.get(key)
+        if pm is not None and m <= pm:
+            if m == pm:
+                raise DataIntegrityError(f"{path}: duplicate minute {m} for {key}")
             rep.out_of_order += 1
-        prev = m if prev is None else max(prev, m)
-        pending.append(Bar(m, o, h, lo, c, int(r.volume), sym))
-    for b in sorted(pending, key=lambda b: b.minute):
-        existing = store.get(sym, b.minute)
+        prev[key] = m if pm is None else max(pm, m)
+        pending.append(Bar(m, o, h, lo, c, int(r.volume), key))
+    for b in sorted(pending, key=lambda b: (b.contract, b.minute)):
+        existing = store.get(b.contract, b.minute)
         if existing is not None:
             if existing != b:
-                raise DataIntegrityError(f"{path}: conflicting duplicate {sym} minute {b.minute} across files")
+                raise DataIntegrityError(f"{path}: conflicting duplicate {b.contract} minute {b.minute} across files")
             rep.identical_cross_file_duplicates += 1
             continue
         store.add(b)
-    rep.per_contract_rows[sym] = len(pending)
+    for b in pending:
+        rep.per_contract_rows[b.contract] = rep.per_contract_rows.get(b.contract, 0) + 1
     return store, rep

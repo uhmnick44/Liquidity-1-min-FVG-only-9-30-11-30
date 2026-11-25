@@ -32,6 +32,7 @@ from zoneinfo import ZoneInfo
 NY = ZoneInfo("America/New_York")
 TRADING, PRE_OPEN, CLOSE, NOT_AVAILABLE = 7, 1, 12, 15
 ENDS = (PRE_OPEN, CLOSE, NOT_AVAILABLE)  # scheduled transitions that end trading
+HALTING = (PRE_OPEN, 8, 9, 10, NOT_AVAILABLE)  # pre-open, halt, pause, suspend, not available
 SCHEDULED = 1
 NS = 10**9
 
@@ -56,7 +57,9 @@ def load(status_dir):
         d = dbn.DBNDecoder()
         d.write(raw)
         recs = d.decode()
-        per[sym] = [(r.ts_event, int(r.action), int(r.reason), r.is_trading) for r in recs[1:]]
+        # key by instrument_id: symbols can repeat across decades
+        for r in recs[1:]:
+            per.setdefault(f"{sym}#{r.instrument_id}", []).append((r.ts_event, int(r.action), int(r.reason), r.is_trading))
     return per
 
 
@@ -141,7 +144,10 @@ def main(status_dir, out_cal, out_rep, cal_id="CME_GLBX_MNQ_from_status"):
     for sym, rs in per.items():
         halt_start = None
         for ts, a, rsn, is_tr in rs:
-            if rsn not in (SCHEDULED, 0, 5) and not is_tr and a != TRADING and in_segment(ts):  # 5 = instrument expiration, not a halt
+            # A halt starts only on an explicit halting action with is_trading == False.
+            # (action NONE / is_trading unknown records are "no change" and never start a halt;
+            #  reason 5 = instrument expiration is not a halt.)
+            if rsn not in (SCHEDULED, 0, 5) and is_tr is False and a in HALTING and in_segment(ts):
                 if halt_start is None:
                     halt_start = (ts, a, rsn)
             elif a == TRADING and halt_start is not None:

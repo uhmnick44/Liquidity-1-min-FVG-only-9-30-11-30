@@ -1,0 +1,8 @@
+{
+ "_comment": "Manual calendar overrides for sessions missing from CME status data. Each entry must be verified by the trader before the calendar is marked verified.",
+ "overrides": [
+  {"session_id": "2020-02-28", "segments": [["2020-02-27T23:00:00Z", "2020-02-28T22:00:00Z"]],
+   "reason": "Status feed has no session-open message (Databento condition 'degraded' 2020-02-27/28); bars trade 03:00-08:59 and 15:00-16:59 ET; normal Thu 18:00 - Fri 17:00 ET hours assumed",
+   "status": "PENDING_TRADER_VERIFICATION"}
+ ]
+}

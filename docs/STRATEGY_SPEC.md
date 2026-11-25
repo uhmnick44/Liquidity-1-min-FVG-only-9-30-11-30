@@ -35,6 +35,17 @@ The trader confirmed the FVG plays no part in this strategy's entry. (The reposi
     reported by k.
 3.4 **Distance filter:** none in the base strategy. The entry-to-level distance is recorded on every trade, for a
     possible separately tested variation.
-## 4. Stop loss — [OPEN]
+## 4. Stop loss — [APPROVED 2026-11-25]
+4.1 **Distance:** stop distance = **2 × |fill price − E|**, where E is the setup's frozen sweep extreme (for a
+    same-candle tie, the shared E). Long: stop = fill − 2 × (fill − E). Short: stop = fill + 2 × (E − fill).
+    Computed in integer ticks; always on the 0.25 grid, never rounded.
+4.2 **Reference price:** the actual entry fill (next-candle open + slippage).
+4.3 **Invalid geometry:** if the fill is at or beyond E (long: fill ≤ E; short: fill ≥ E), the trade is
+    **skipped** and logged with reason `FILL_AT_OR_BEYOND_EXTREME`.
+4.4 **Execution:** a resting stop order. It fills on the first candle whose range touches the stop, with 1 tick of
+    slippage against the trade (0 and 2 ticks reported as sensitivity). If a candle opens beyond the stop, the
+    fill is that open (+ slippage).
+4.5 **Maximum stop size:** none in the base strategy. The stop distance is recorded on every trade; dollar risk is
+    handled by position sizing (section 6).
 ## 5. Take profit / exit — [OPEN]
 ## 6. Risk, sizing, limits, costs — [OPEN]

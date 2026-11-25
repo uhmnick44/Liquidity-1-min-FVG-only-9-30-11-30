@@ -1,4 +1,9 @@
-# Verification Checklist — sign-off needed before the validation run
+# Verification Checklist — SIGNED OFF 2026-11-25
+
+> Trader confirmed sections 1–6 checked against official sources (2026-11-25). Section 3 decision: Friday
+> holidays 2026-06-19 and 2026-07-03 are their **own trade dates**. N22, N32 and N33 approved.
+
+<!-- original checklist follows -->
 
 Everything below was derived from exchange data (CME status messages via Databento) or, for NYSE, from two
 independent calendar libraries that agree on every day. You check it against official sources in your own
@@ -28,7 +33,7 @@ In each case the halted day's trading belongs to the **next** trade date. For ex
 
 ## Section 3 — CME Friday holidays (13:00 ET stop)
 - [ ] 2025-07-04: CME sent a scheduled **CLOSE** at 13:00, so it is its own trade date.
-- [ ] 2026-06-19 and 2026-07-03: CME sent "not available for trading" at 13:00 but **no CLOSE**. I therefore assigned those Friday mornings to the following Monday's trade date (2026-06-22, 2026-07-06). Please confirm which trade date CME assigned to them.
+- [ ] 2026-06-19 and 2026-07-03: CME sent "not available for trading" at 13:00 but **no CLOSE**. **Decision 2026-11-25: each Friday is its own trade date** (2026-06-19, 2026-07-03).
 
 ## Section 4 — CME special closures
 - [ ] Good Friday 2023-04-07: close 09:15

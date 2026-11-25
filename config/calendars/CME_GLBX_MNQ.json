@@ -1,8 +1,8 @@
 {
  "calendar_id": "CME_GLBX_MNQ_from_status",
  "version": "status-20261125",
- "verified": false,
- "verified_by": null,
+ "verified": true,
+ "verified_by": "Trader, 2026-11-25: checked docs/VERIFICATION_CHECKLIST.md sections 1-6 against official CME/NYSE sources; Friday holidays 2026-06-19/07-03 set as own trade dates",
  "source": "CME matching-engine status messages via Databento GLBX.MDP3 status schema; scheduled transitions identical across all active MNQ outrights",
  "sessions": [
   {
@@ -8521,12 +8521,17 @@
    ]
   },
   {
-   "session_id": "2026-06-22",
+   "session_id": "2026-06-19",
    "segments": [
     [
      "2026-06-18T22:00:00Z",
      "2026-06-19T17:00:00Z"
-    ],
+    ]
+   ]
+  },
+  {
+   "session_id": "2026-06-22",
+   "segments": [
     [
      "2026-06-21T22:00:00Z",
      "2026-06-22T21:00:00Z"
@@ -8606,12 +8611,17 @@
    ]
   },
   {
-   "session_id": "2026-07-06",
+   "session_id": "2026-07-03",
    "segments": [
     [
      "2026-07-02T22:00:00Z",
      "2026-07-03T17:00:00Z"
-    ],
+    ]
+   ]
+  },
+  {
+   "session_id": "2026-07-06",
+   "segments": [
     [
      "2026-07-05T22:00:00Z",
      "2026-07-06T21:00:00Z"

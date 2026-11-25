@@ -1,8 +1,8 @@
 {
 "calendar_id": "NYSE",
 "version": "draft-pmc5.6.1+exchange_calendars",
-"verified": false,
-"verified_by": null,
+"verified": true,
+"verified_by": "Trader, 2026-11-25: checked docs/VERIFICATION_CHECKLIST.md sections 1-6 against official CME/NYSE sources; Friday holidays 2026-06-19/07-03 set as own trade dates",
 "source": "DRAFT from pandas_market_calendars XNYS and exchange_calendars XNYS (agree on every day); requires trader verification against NYSE notices",
 "tz": "America/New_York",
 "days": [

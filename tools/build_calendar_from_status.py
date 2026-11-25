@@ -8,7 +8,8 @@ Source: CME's own matching-engine status messages (GLBX.MDP3 `status` schema).
   the next PRE_OPEN(1) or CLOSE(12) with reason SCHEDULED. Every active
   outright must carry the identical transition; any disagreement aborts.
 - Trade date (session_id): the America/New_York date of the scheduled CLOSE
-  that ends the session (I9 / N7 / N27). A session can therefore contain
+  (or scheduled NOT_AVAILABLE, trader decision 2026-11-25) that ends the
+  session (I9 / N7 / N27). A session can therefore contain
   several segments, e.g. a holiday halt.
 - Unscheduled halts: inside a scheduled segment, an instrument leaving the
   trading state with a non-scheduled reason, until it trades again. Reported per
@@ -109,7 +110,9 @@ def main(status_dir, out_cal, out_rep, cal_id="CME_GLBX_MNQ_from_status"):
             if open_ts is not None:
                 segs.append((open_ts, ts))
                 open_ts = None
-            if a == CLOSE and segs:
+            # A scheduled NOT_AVAILABLE also ends the trade date (trader decision 2026-11-25:
+            # Friday holidays 2026-06-19 / 2026-07-03 are their own trade dates, like 2025-07-04).
+            if a in (CLOSE, NOT_AVAILABLE) and segs:
                 sessions.append({"session_id": local(ts).date().isoformat(),
                                  "segments": [[iso(x), iso(y)] for x, y in segs]})
                 segs = []

@@ -60,4 +60,16 @@ The trader confirmed the FVG plays no part in this strategy's entry. (The reposi
 5.5 **Management:** none. No breakeven, partials or trailing stop.
 5.6 **Note:** a 1R-risk / 0.5R-reward structure breaks even at a 66.7% win rate before costs. Results are
     reported by stop size and with/without costs.
-## 6. Risk, sizing, limits, costs — [OPEN]
+## 6. Risk, sizing, limits, costs — [APPROVED 2026-11-25: trader adopted the recommendations]
+6.1 **Size:** 1 MNQ contract per trade. Results are reported in ticks, points, R and USD per contract.
+    Contract value: definitions give unit_of_measure_qty = 2 (IPNT, USD), so **$2.00 per index point, $0.50 per
+    tick**. (The field min_price_increment_amount reads 0.005 in 1e-9 units, which does not match. Noted, not
+    used.)
+6.2 **Trades per day:** no maximum in the base test. Section 1.7 already allows only one position at a time.
+6.3 **Daily loss limit:** none in the base test, so the raw rule set is measured. Daily P&L distribution, losing
+    streaks and drawdown are reported. Daily limits can then be tested as separate variations. (A hard daily
+    limit for live trading is a separate execution-discipline decision.)
+6.4 **Commission:** the trader's actual rate is unknown. Results are reported **gross**, at **illustrative** round
+    trips of $0.50 / $1.00 / $1.50 per contract (scenarios, not the trader's rate), and as the round-trip cost at
+    which expectancy reaches zero.
+6.5 **Prop-firm rules:** not modelled in the base test.

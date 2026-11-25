@@ -96,3 +96,21 @@ Identical to v0.1 (sections 1–7) except:
   commission** (illustrative). Results at $0.50 and $1.50 are also reported. A positive estimate within 2 standard
   errors of zero is reported as **inconclusive**, not as an edge.
 - No parameter of v0.2 may be changed after the results are seen. Any change becomes v0.3, tested on new data.
+
+---
+
+# Cross-market test: MGC (micro gold) — [APPROVED 2026-11-25, PRE-REGISTERED before any gold result]
+Same hypotheses, no rule changes. **v0.1 and v0.2 exactly as specified above**, run on MGC.
+- **Data:** Databento GLBX.MDP3 MGC.FUT (job GLBX-20261122-FLQH67SQMY ohlcv-1m, plus definition/statistics/status).
+- **Test period:** entries **2020-01-01 → 2026-11-20**. 2016–2019 is excluded on data quality alone: the front
+  contract is missing 1.8–17.5% of 09:30–11:30 ET minutes then, versus ≤0.4% from 2020 on. This was decided before
+  any strategy result.
+- **Roll cycle (I3):** G, J, M, Q, Z. V (Oct) is excluded: it is never the highest-volume contract in the data,
+  and its thin volume would block rollover decisions.
+- **Reference market (RTH / pre-window / time exit):** NYSE hours and holidays, identical to MNQ.
+- **Trading window:** 09:30–11:30 ET.
+- **Tick size and USD value:** from the MGC definitions, never assumed.
+- **Evaluation:** the whole test period is out-of-sample for these fixed rules. **Pass = expectancy > 0 after
+  1 tick slippage and $1.00 round-trip commission (illustrative), more than 2 standard errors above zero.**
+  Results are also shown by year. A result within 2 SE is inconclusive.
+- A pass would be a lead for forward testing, not proof of an edge.

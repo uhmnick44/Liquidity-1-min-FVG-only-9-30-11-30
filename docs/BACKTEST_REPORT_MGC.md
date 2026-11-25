@@ -11,7 +11,8 @@
 - Independent re-derivation from raw bars (`tools/validate_run.py`): **0 mismatches**. Checked: 60,164 events,
   33,325 invalidations, 60,164 consumptions, 55,283 swings, 4,644 complete session/RTH/pre-window extremes.
   5,746 windows with missing minutes are quarantined per N3.
-- Determinism: second run in progress at time of writing (see the addendum when complete).
+- Determinism: **PASSED**. Two independent full runs produced byte-identical outputs (references.jsonl 644da001…,
+  sweep_events.jsonl 695507be…, lifecycle_log.jsonl d57d690e…, data_quality.jsonl 8b8db0a8…, CSVs identical).
 
 ## Results (1 tick slippage, $1.00 RT commission)
 

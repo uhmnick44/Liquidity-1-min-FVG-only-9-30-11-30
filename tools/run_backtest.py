@@ -1,0 +1,105 @@
+"""Run the strategy backtest on a validated engine run.
+
+Usage:
+  python tools/run_backtest.py ENGINE_RUN_DIR OUT_DIR BARS_DIR [BARS_DIR ...] [--s1 SKIP] [--s2 no|yes]
+
+Inputs are read only: engine outputs (sweep_events.jsonl), DBN bars, verified calendars.
+"""
+from __future__ import annotations
+
+import glob
+import json
+import sys
+from collections import Counter
+from datetime import date, datetime, time
+from decimal import Decimal
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from liqengine.dbn import _read  # noqa: E402
+from strategy.backtest import NY, Bar, Market, Params, build_setups, local, m_of, simulate  # noqa: E402
+from strategy.stats import breakdown, breakeven_commission, half_hour, risk_bucket, summarize  # noqa: E402
+
+Q = 250_000_000  # 0.25 in 1e-9 units
+
+
+def load_bars(dirs):
+    out = {}
+    for d in dirs:
+        for f in glob.glob(str(Path(d) / "*.ohlcv-1m.*.dbn.zst")):
+            sym = f.split(".")[-3]
+            if "-" in sym:
+                continue
+            _, recs = _read(f)
+            rows = out.setdefault(sym, {})
+            for r in recs:
+                rows[r.ts_event // 60_000_000_000] = Bar(r.ts_event // 60_000_000_000, r.open // Q, r.high // Q, r.low // Q, r.close // Q)
+    return {s: list(v.values()) for s, v in out.items()}
+
+
+def market(bars):
+    cme = json.load(open(ROOT / "config/calendars/CME_GLBX_MNQ.json"))
+    ny = {d["date"]: d for d in json.load(open(ROOT / "config/calendars/NYSE.json"))["days"]}
+    assert cme["verified"], "CME calendar not verified"
+    segs, rth = [], {}
+    for s in cme["sessions"]:
+        for a, b in s["segments"]:
+            segs.append((m_of(a), m_of(b), s["session_id"]))
+        d = ny.get(s["session_id"])
+        if d is None or d.get("closed"):
+            rth[s["session_id"]] = None
+        else:
+            dd = date.fromisoformat(s["session_id"])
+            rc = int(datetime.combine(dd, time.fromisoformat(d["close"]), NY).timestamp()) // 60
+            rth[s["session_id"]] = min(rc, m_of(s["segments"][-1][1]))
+    return Market(bars, segs, rth)
+
+
+def main(run_dir, out_dir, *rest):
+    args = list(rest)
+    s1 = s2 = None
+    if "--s1" in args:
+        i = args.index("--s1"); s1 = args[i + 1]; del args[i:i + 2]
+    if "--s2" in args:
+        i = args.index("--s2"); s2 = args[i + 1] == "yes"; del args[i:i + 2]
+    events = [json.loads(l) for l in open(Path(run_dir) / "sweep_events.jsonl")]
+    mkt = market(load_bars(args))
+    out = Path(out_dir); out.mkdir(parents=True, exist_ok=True)
+    results = {}
+    scenarios = {"base": Params(trade_reference_closed_days=s2, opposite_same_candle=s1)}
+    for slip in (0, 2):
+        scenarios[f"slippage_{slip}"] = Params(trade_reference_closed_days=s2, opposite_same_candle=s1,
+                                               entry_slippage=slip, stop_slippage=slip, exit_slippage=slip)
+    scenarios["target_touch_fill"] = Params(trade_reference_closed_days=s2, opposite_same_candle=s1, target_through_ticks=0)
+    log = []
+    for name, p in scenarios.items():
+        setups = build_setups(events, mkt, p, log if name == "base" else [])
+        trades, skipped = simulate(setups, mkt, p)
+        res = {"setups": len(setups), "skipped": dict(Counter(r for _, r in skipped)),
+               "gross": summarize(trades),
+               "breakeven_commission_rt_usd": breakeven_commission(trades)}
+        if name == "base":
+            for c in ("0.50", "1.00", "1.50"):
+                res[f"net_commission_rt_{c}"] = summarize(trades, Decimal(c))
+            res["exit_reasons"] = dict(Counter(t.reason for t in trades))
+            res["ambiguous_same_bar_stop_assumed"] = sum(t.ambiguous_bar for t in trades)
+            res["by_side"] = breakdown(trades, lambda t: t.side)
+            res["by_k"] = breakdown(trades, lambda t: t.setup.k)
+            res["by_risk_ticks"] = breakdown(trades, risk_bucket)
+            res["by_entry_half_hour"] = breakdown(trades, half_hour)
+            res["by_year"] = breakdown(trades, lambda t: local(t.entry_minute).year)
+            res["by_label_set"] = breakdown(trades, lambda t: "+".join(t.setup.labels))
+            with open(out / "trades.jsonl", "w") as fh:
+                for t in trades:
+                    fh.write(json.dumps(t.to_dict()) + "\n")
+            res["setup_build_issues"] = log
+        results[name] = res
+    (out / "backtest_results.json").write_text(json.dumps(results, indent=1, default=str))
+    b = results["base"]
+    print(json.dumps({"setups": b["setups"], "skipped": b["skipped"], "gross": b["gross"],
+                      "breakeven_commission_rt_usd": b["breakeven_commission_rt_usd"]}, indent=1))
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:])

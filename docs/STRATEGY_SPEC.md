@@ -25,12 +25,16 @@ Status legend: **[APPROVED]** trader decision · **[OPEN]** not yet defined.
 ## 2. 1-minute FVG — [REMOVED 2026-11-25]
 The trader confirmed the FVG plays no part in this strategy's entry. (The repository name predates this.)
 
-## 3. Entry trigger — [PARTLY APPROVED 2026-11-25]
+## 3. Entry trigger — [APPROVED 2026-11-25]
 3.1 **Trigger:** enter when the active setup's sweep is confirmed, i.e. at the close of the confirmation candle q
     (a BSL setup closes back below the level → short; an SSL setup closes back above the level → long).
-3.2 Fill model (backtest) — [OPEN]
-3.3 Confirmations on penetration candles k = 1..3 — [OPEN]
-3.4 Distance filter — [OPEN]
+3.2 **Fill model (backtest):** a market order fills at the **open of the next 1-minute candle (q+1)**, plus
+    **1 tick slippage** against the trade. Sensitivity is also reported at 0 and 2 ticks. Entry must occur before
+    11:30 ET (A7).
+3.3 **Late confirmations:** confirmation on any candle k = 0..3 of the engine's window is valid. Results are
+    reported by k.
+3.4 **Distance filter:** none in the base strategy. The entry-to-level distance is recorded on every trade, for a
+    possible separately tested variation.
 ## 4. Stop loss — [OPEN]
 ## 5. Take profit / exit — [OPEN]
 ## 6. Risk, sizing, limits, costs — [OPEN]

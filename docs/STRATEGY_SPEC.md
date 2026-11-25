@@ -73,3 +73,9 @@ The trader confirmed the FVG plays no part in this strategy's entry. (The reposi
     trips of $0.50 / $1.00 / $1.50 per contract (scenarios, not the trader's rate), and as the round-trip cost at
     which expectancy reaches zero.
 6.5 **Prop-firm rules:** not modelled in the base test.
+
+## 7. Additional decisions — [APPROVED 2026-11-25]
+7.1 **S2:** no trades on trade dates when the reference market (NYSE) is closed (2025-07-04 and 2026-06-19 in
+    this dataset; 4 setups skipped).
+7.2 **S1** (opposite-direction setups confirmed on the same candle) never occurs in 2022-10 → 2026-10. The code
+    raises an error if it ever does, so no assumption is made silently.

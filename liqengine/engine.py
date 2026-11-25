@@ -120,6 +120,7 @@ class LiquidityEngine:
         # contract -> minute -> reason ids whose unresolved minutes contain it; reason id -> ref ids
         self._minute_reasons: dict[str, dict[int, set[str]]] = {}
         self._reason_refs: dict[str, set[str]] = {}
+        self._obs_cache: dict[tuple, list] = {}
         self.log: list[dict] = []
         self.data_quality: list[dict] = []
 
@@ -641,21 +642,17 @@ class LiquidityEngine:
             return
         bars = self._observed_bars.get(ev.contract, {})
         # bounds [w0,w1); printed within [w0,a1)
-        obs_a = [bars[mm] for mm in range(w0, a1) if mm in bars]
-        obs_b = [b for b in obs_a if b.minute < w1]
+        bound_hi, bound_lo = self._obs_extremes(ev.contract, bars, w0, w1)
+        obs_hi, obs_lo = self._obs_extremes(ev.contract, bars, w0, a1)
         missing_in_window = set(ms[bisect_left(ms, w0):bisect_left(ms, a1)])
         grid = TickGrid(self.instrument.contract(ev.contract).tick_size) if self.instrument.has_expirations else self.grid
         hi = None if ev.high is None else grid.to_ticks(ev.high)
         lo = None if ev.low is None else grid.to_ticks(ev.low)
-        bound_hi = max((b.high for b in obs_b), default=None)
-        bound_lo = min((b.low for b in obs_b), default=None)
         if (hi is not None and bound_hi is not None and hi < bound_hi) or \
                 (lo is not None and bound_lo is not None and lo > bound_lo):
             self.data_quality.append({"minute": ev.available_minute, "kind": "COARSE_EVIDENCE_INCONSISTENT",
                                       "source": ev.source, "contract": ev.contract})
             return
-        obs_hi = max((b.high for b in obs_a), default=None)
-        obs_lo = min((b.low for b in obs_a), default=None)
         hi_from_gap = hi is not None and bool(missing_in_window) and (obs_hi is None or hi > obs_hi)
         lo_from_gap = lo is not None and bool(missing_in_window) and (obs_lo is None or lo < obs_lo)
         A = ev.available_minute
@@ -698,6 +695,7 @@ class LiquidityEngine:
                 if not q.unresolved_minutes and not q.disproven:
                     q.resolved_minute = A
                     self._open_reasons[r.ref_id].pop(q.reason_id, None)
+                    self._reason_refs.get(q.reason_id, set()).discard(r.ref_id)
                     self._log(A, "QUARANTINE_REASON_RESOLVED", ref_id=r.ref_id, reason=q.reason_id, source=ev.source)
             self._maybe_reinstate(r, A)
             if not any(q.unresolved_minutes and not q.resolved and not q.disproven
@@ -731,6 +729,22 @@ class LiquidityEngine:
         r.consuming_event_id = e.event_id
         self._reject(e, A, RejectReason.PENETRATED_DURING_MISSING_DATA)
         self._log(A, "LIQUIDITY_CONSUMED", ref_id=r.ref_id, kind="INFERRED_FROM_COARSE_DATA", source=ev.source)
+
+    def _obs_extremes(self, contract, bars, w0, end):
+        """(max high, min low) of observed bars in [w0, end), cached incrementally per (contract, w0)."""
+        key = (contract, w0)
+        c = self._obs_cache.get(key)
+        if c is None or c[0] > end:
+            c = [w0, None, None]
+        last, hi, lo = c
+        for mm in range(last, end):
+            b = bars.get(mm)
+            if b is not None:
+                hi = b.high if hi is None or b.high > hi else hi
+                lo = b.low if lo is None or b.low < lo else lo
+        if end >= last:
+            self._obs_cache[key] = [end, hi, lo]
+        return hi, lo
 
     def _index_reason(self, q: QuarantineReason, ref_id: str):
         mm = self._minute_reasons.setdefault(q.contract, {})
